@@ -1,0 +1,1544 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: MathMind AI EdTech Platform API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: users
+    description: User profile and settings
+  - name: subjects
+    description: Subjects and topics
+  - name: practice
+    description: Practice questions and answers
+  - name: progress
+    description: Student progress tracking
+  - name: dashboard
+    description: Dashboard summary and analytics
+  - name: gamification
+    description: XP, badges, streaks, leaderboard
+  - name: battles
+    description: Multiplayer math battles
+  - name: friends
+    description: Friend system
+  - name: notifications
+    description: Notifications
+  - name: openai
+    description: OpenAI AI chat, image, and audio operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # Auth
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterBody"
+      responses:
+        "201":
+          description: Registered user with token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Authenticated user with token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  # Users
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  # Subjects
+  /subjects:
+    get:
+      operationId: listSubjects
+      tags: [subjects]
+      summary: List all subjects
+      responses:
+        "200":
+          description: List of subjects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subject"
+  /subjects/{id}/topics:
+    get:
+      operationId: listTopics
+      tags: [subjects]
+      summary: List topics for a subject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of topics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Topic"
+
+  # Practice
+  /practice/questions:
+    get:
+      operationId: listQuestions
+      tags: [practice]
+      summary: Get practice questions
+      parameters:
+        - name: topicId
+          in: query
+          schema:
+            type: integer
+        - name: difficulty
+          in: query
+          schema:
+            type: string
+            enum: [easy, medium, hard]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of questions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Question"
+  /practice/questions/{id}/submit:
+    post:
+      operationId: submitAnswer
+      tags: [practice]
+      summary: Submit answer for a question
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitAnswerBody"
+      responses:
+        "200":
+          description: Answer result with AI explanation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerResult"
+  /practice/generate:
+    post:
+      operationId: generateQuestion
+      tags: [practice]
+      summary: AI-generate a personalized question
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateQuestionBody"
+      responses:
+        "200":
+          description: Generated question with step-by-step solution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedQuestion"
+
+  # Progress
+  /progress:
+    get:
+      operationId: getProgress
+      tags: [progress]
+      summary: Get student progress overview
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Progress overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgressOverview"
+  /progress/topic-stats:
+    get:
+      operationId: getTopicStats
+      tags: [progress]
+      summary: Get per-topic stats
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Topic stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TopicStat"
+  /progress/accuracy-history:
+    get:
+      operationId: getAccuracyHistory
+      tags: [progress]
+      summary: Get accuracy over time (for graph)
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: integer
+        - name: days
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Accuracy history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AccuracyPoint"
+
+  # Dashboard
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /dashboard/recommendations:
+    get:
+      operationId: getRecommendations
+      tags: [dashboard]
+      summary: Get AI-powered topic recommendations
+      responses:
+        "200":
+          description: Recommended topics and actions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Recommendation"
+  /dashboard/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent learning activity
+      responses:
+        "200":
+          description: Recent activity feed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  # Gamification
+  /gamification/leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [gamification]
+      summary: Get global leaderboard
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+  /gamification/badges:
+    get:
+      operationId: listBadges
+      tags: [gamification]
+      summary: List all badges
+      responses:
+        "200":
+          description: All badges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Badge"
+  /gamification/my-badges:
+    get:
+      operationId: getMyBadges
+      tags: [gamification]
+      summary: Get current user badges
+      responses:
+        "200":
+          description: User badges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserBadge"
+
+  # Battles
+  /battles:
+    get:
+      operationId: listBattles
+      tags: [battles]
+      summary: List open battle rooms
+      responses:
+        "200":
+          description: Open rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Battle"
+    post:
+      operationId: createBattle
+      tags: [battles]
+      summary: Create a new battle room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBattleBody"
+      responses:
+        "201":
+          description: Created battle room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Battle"
+  /battles/{id}:
+    get:
+      operationId: getBattle
+      tags: [battles]
+      summary: Get battle room details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Battle room
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BattleWithParticipants"
+  /battles/{id}/join:
+    post:
+      operationId: joinBattle
+      tags: [battles]
+      summary: Join a battle room
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Joined battle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BattleWithParticipants"
+  /battles/{id}/submit:
+    post:
+      operationId: submitBattleAnswer
+      tags: [battles]
+      summary: Submit answer in a battle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BattleAnswerBody"
+      responses:
+        "200":
+          description: Answer result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BattleAnswerResult"
+
+  # Friends
+  /friends:
+    get:
+      operationId: listFriends
+      tags: [friends]
+      summary: List friends
+      responses:
+        "200":
+          description: Friend list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FriendEntry"
+  /friends/requests:
+    get:
+      operationId: listFriendRequests
+      tags: [friends]
+      summary: List pending friend requests
+      responses:
+        "200":
+          description: Pending requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FriendRequest"
+    post:
+      operationId: sendFriendRequest
+      tags: [friends]
+      summary: Send a friend request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendFriendRequestBody"
+      responses:
+        "201":
+          description: Friend request sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendRequest"
+  /friends/requests/{id}/accept:
+    post:
+      operationId: acceptFriendRequest
+      tags: [friends]
+      summary: Accept a friend request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendEntry"
+  /friends/requests/{id}/reject:
+    post:
+      operationId: rejectFriendRequest
+      tags: [friends]
+      summary: Reject a friend request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Rejected
+
+  # Notifications
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+  /notifications/{id}/read:
+    post:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Marked read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  # OpenAI Chat (AI Tutor)
+  /openai/conversations:
+    get:
+      operationId: listOpenaiConversations
+      tags: [openai]
+      summary: List all tutor conversations
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OpenaiConversation"
+    post:
+      operationId: createOpenaiConversation
+      tags: [openai]
+      summary: Create a new tutor conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOpenaiConversationBody"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiConversation"
+  /openai/conversations/{id}:
+    get:
+      operationId: getOpenaiConversation
+      tags: [openai]
+      summary: Get conversation with messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiConversationWithMessages"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiError"
+    delete:
+      operationId: deleteOpenaiConversation
+      tags: [openai]
+      summary: Delete a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiError"
+  /openai/conversations/{id}/messages:
+    get:
+      operationId: listOpenaiMessages
+      tags: [openai]
+      summary: List messages in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OpenaiMessage"
+    post:
+      operationId: sendOpenaiMessage
+      tags: [openai]
+      summary: Send a message to the AI tutor (streaming)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendOpenaiMessageBody"
+      responses:
+        "200":
+          description: SSE stream of assistant text chunks
+          content:
+            text/event-stream: {}
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    # Auth
+    RegisterBody:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        displayName:
+          type: string
+        language:
+          type: string
+          enum: [en, hi]
+      required:
+        - username
+        - email
+        - password
+        - displayName
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserProfile"
+      required:
+        - token
+        - user
+
+    # Users
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        language:
+          type: string
+          enum: [en, hi]
+        xp:
+          type: integer
+        level:
+          type: integer
+        streak:
+          type: integer
+        totalQuestionsAnswered:
+          type: integer
+        totalCorrect:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - username
+        - email
+        - displayName
+        - language
+        - xp
+        - level
+        - streak
+        - totalQuestionsAnswered
+        - totalCorrect
+        - createdAt
+    UpdateUserBody:
+      type: object
+      properties:
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+        language:
+          type: string
+          enum: [en, hi]
+
+    # Subjects & Topics
+    Subject:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        nameHi:
+          type: string
+        icon:
+          type: string
+        color:
+          type: string
+        description:
+          type: string
+      required:
+        - id
+        - name
+        - nameHi
+        - icon
+        - color
+        - description
+    Topic:
+      type: object
+      properties:
+        id:
+          type: integer
+        subjectId:
+          type: integer
+        name:
+          type: string
+        nameHi:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        order:
+          type: integer
+      required:
+        - id
+        - subjectId
+        - name
+        - nameHi
+        - difficulty
+        - order
+
+    # Practice
+    Question:
+      type: object
+      properties:
+        id:
+          type: integer
+        topicId:
+          type: integer
+        text:
+          type: string
+        textHi:
+          type: ["string", "null"]
+        options:
+          type: array
+          items:
+            type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        points:
+          type: integer
+        timeLimit:
+          type: integer
+      required:
+        - id
+        - topicId
+        - text
+        - options
+        - difficulty
+        - points
+        - timeLimit
+    SubmitAnswerBody:
+      type: object
+      properties:
+        answer:
+          type: string
+        timeTaken:
+          type: integer
+      required:
+        - answer
+        - timeTaken
+    AnswerResult:
+      type: object
+      properties:
+        correct:
+          type: boolean
+        correctAnswer:
+          type: string
+        xpEarned:
+          type: integer
+        explanation:
+          type: string
+        explanationHi:
+          type: ["string", "null"]
+        steps:
+          type: array
+          items:
+            type: string
+      required:
+        - correct
+        - correctAnswer
+        - xpEarned
+        - explanation
+        - steps
+    GenerateQuestionBody:
+      type: object
+      properties:
+        topicId:
+          type: integer
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        language:
+          type: string
+          enum: [en, hi]
+      required:
+        - topicId
+        - difficulty
+    GeneratedQuestion:
+      type: object
+      properties:
+        question:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        correctAnswer:
+          type: string
+        explanation:
+          type: string
+        steps:
+          type: array
+          items:
+            type: string
+      required:
+        - question
+        - options
+        - correctAnswer
+        - explanation
+        - steps
+
+    # Progress
+    ProgressOverview:
+      type: object
+      properties:
+        totalXp:
+          type: integer
+        level:
+          type: integer
+        streak:
+          type: integer
+        totalAnswered:
+          type: integer
+        totalCorrect:
+          type: integer
+        overallAccuracy:
+          type: number
+        studyTimeMinutes:
+          type: integer
+        weakTopics:
+          type: array
+          items:
+            type: string
+        strongTopics:
+          type: array
+          items:
+            type: string
+      required:
+        - totalXp
+        - level
+        - streak
+        - totalAnswered
+        - totalCorrect
+        - overallAccuracy
+        - studyTimeMinutes
+        - weakTopics
+        - strongTopics
+    TopicStat:
+      type: object
+      properties:
+        topicId:
+          type: integer
+        topicName:
+          type: string
+        subjectName:
+          type: string
+        accuracy:
+          type: number
+        answered:
+          type: integer
+        correct:
+          type: integer
+        strength:
+          type: string
+          enum: [weak, average, strong]
+      required:
+        - topicId
+        - topicName
+        - subjectName
+        - accuracy
+        - answered
+        - correct
+        - strength
+    AccuracyPoint:
+      type: object
+      properties:
+        date:
+          type: string
+        accuracy:
+          type: number
+        questionsAnswered:
+          type: integer
+      required:
+        - date
+        - accuracy
+        - questionsAnswered
+
+    # Dashboard
+    DashboardSummary:
+      type: object
+      properties:
+        xp:
+          type: integer
+        level:
+          type: integer
+        streak:
+          type: integer
+        rank:
+          type: integer
+        questionsToday:
+          type: integer
+        accuracyToday:
+          type: number
+        overallAccuracy:
+          type: number
+        badgesEarned:
+          type: integer
+        activeBattles:
+          type: integer
+        pendingFriendRequests:
+          type: integer
+        unreadNotifications:
+          type: integer
+      required:
+        - xp
+        - level
+        - streak
+        - rank
+        - questionsToday
+        - accuracyToday
+        - overallAccuracy
+        - badgesEarned
+        - activeBattles
+        - pendingFriendRequests
+        - unreadNotifications
+    Recommendation:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [revise_topic, practice_more, challenge_friend, take_break]
+        title:
+          type: string
+        description:
+          type: string
+        topicId:
+          type: ["integer", "null"]
+        topicName:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [high, medium, low]
+      required:
+        - type
+        - title
+        - description
+        - priority
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [question_answered, battle_won, badge_earned, friend_added, streak_milestone]
+        description:
+          type: string
+        xpEarned:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - description
+        - xpEarned
+        - createdAt
+
+    # Gamification
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank:
+          type: integer
+        userId:
+          type: integer
+        displayName:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        xp:
+          type: integer
+        level:
+          type: integer
+        streak:
+          type: integer
+      required:
+        - rank
+        - userId
+        - displayName
+        - xp
+        - level
+        - streak
+    Badge:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        rarity:
+          type: string
+          enum: [common, rare, epic, legendary]
+        xpRequired:
+          type: integer
+      required:
+        - id
+        - name
+        - description
+        - icon
+        - rarity
+        - xpRequired
+    UserBadge:
+      type: object
+      properties:
+        badgeId:
+          type: integer
+        badge:
+          $ref: "#/components/schemas/Badge"
+        earnedAt:
+          type: string
+          format: date-time
+      required:
+        - badgeId
+        - badge
+        - earnedAt
+
+    # Battles
+    Battle:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        subjectId:
+          type: integer
+        subjectName:
+          type: string
+        hostId:
+          type: integer
+        hostName:
+          type: string
+        status:
+          type: string
+          enum: [waiting, in_progress, finished]
+        maxParticipants:
+          type: integer
+        currentParticipants:
+          type: integer
+        questionCount:
+          type: integer
+        timePerQuestion:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - code
+        - subjectId
+        - subjectName
+        - hostId
+        - hostName
+        - status
+        - maxParticipants
+        - currentParticipants
+        - questionCount
+        - timePerQuestion
+        - createdAt
+    BattleParticipant:
+      type: object
+      properties:
+        userId:
+          type: integer
+        displayName:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        score:
+          type: integer
+        correctAnswers:
+          type: integer
+        isReady:
+          type: boolean
+      required:
+        - userId
+        - displayName
+        - score
+        - correctAnswers
+        - isReady
+    BattleWithParticipants:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        subjectId:
+          type: integer
+        subjectName:
+          type: string
+        hostId:
+          type: integer
+        hostName:
+          type: string
+        status:
+          type: string
+          enum: [waiting, in_progress, finished]
+        maxParticipants:
+          type: integer
+        questionCount:
+          type: integer
+        timePerQuestion:
+          type: integer
+        participants:
+          type: array
+          items:
+            $ref: "#/components/schemas/BattleParticipant"
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Question"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - code
+        - subjectId
+        - subjectName
+        - hostId
+        - hostName
+        - status
+        - maxParticipants
+        - questionCount
+        - timePerQuestion
+        - participants
+        - questions
+        - createdAt
+    CreateBattleBody:
+      type: object
+      properties:
+        subjectId:
+          type: integer
+        questionCount:
+          type: integer
+        timePerQuestion:
+          type: integer
+      required:
+        - subjectId
+    BattleAnswerBody:
+      type: object
+      properties:
+        questionId:
+          type: integer
+        answer:
+          type: string
+        timeTaken:
+          type: integer
+      required:
+        - questionId
+        - answer
+        - timeTaken
+    BattleAnswerResult:
+      type: object
+      properties:
+        correct:
+          type: boolean
+        correctAnswer:
+          type: string
+        pointsEarned:
+          type: integer
+        currentScore:
+          type: integer
+      required:
+        - correct
+        - correctAnswer
+        - pointsEarned
+        - currentScore
+
+    # Friends
+    FriendEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        displayName:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        xp:
+          type: integer
+        level:
+          type: integer
+        streak:
+          type: integer
+        onlineStatus:
+          type: string
+          enum: [online, offline]
+      required:
+        - id
+        - userId
+        - displayName
+        - xp
+        - level
+        - streak
+        - onlineStatus
+    FriendRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        fromUserId:
+          type: integer
+        fromDisplayName:
+          type: string
+        fromAvatarUrl:
+          type: ["string", "null"]
+        toUserId:
+          type: integer
+        status:
+          type: string
+          enum: [pending, accepted, rejected]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - fromUserId
+        - fromDisplayName
+        - toUserId
+        - status
+        - createdAt
+    SendFriendRequestBody:
+      type: object
+      properties:
+        toUsername:
+          type: string
+      required:
+        - toUsername
+
+    # Notifications
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [daily_reminder, weak_topic_alert, challenge_invite, friend_request, achievement, streak_reminder]
+        title:
+          type: string
+        message:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - title
+        - message
+        - read
+        - createdAt
+
+    # OpenAI
+    OpenaiConversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - createdAt
+    OpenaiMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - conversationId
+        - role
+        - content
+        - createdAt
+    CreateOpenaiConversationBody:
+      type: object
+      properties:
+        title:
+          type: string
+      required:
+        - title
+    SendOpenaiMessageBody:
+      type: object
+      properties:
+        content:
+          type: string
+        language:
+          type: string
+          enum: [en, hi]
+      required:
+        - content
+    OpenaiConversationWithMessages:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpenaiMessage"
+      required:
+        - id
+        - title
+        - createdAt
+        - messages
+    OpenaiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

@@ -1,0 +1,39 @@
+Role: You are a Lead Full-Stack Engineer and EdTech Specialist. We are building "Math-Mind-Mentor," a personalized AI education platform designed to eliminate the "one-size-fits-all" friction in learning.
+
+Core Mission: Move beyond memorization. Create an adaptive, explainable, and multilingual environment that builds student confidence through mastery.
+
+Phase 1: Database & Content Expansion
+Subject Deepening: Expand the existing math, physics, chemistry, and programming modules. Instead of simple Q&A, generate structured "Learning Paths" for each.
+
+Data Structure: Implement a schema that supports "Sub-topics" (e.g., Programming -> Python -> Loops). Each sub-topic should have:
+
+Conceptual explanation.
+
+Real-world application examples.
+
+Adaptive difficulty levels (Easy, Medium, Hard).
+
+Phase 2: The "Course Marketplace & Comparison" Feature
+Aggregation: Build a feature that allows students to select a subject (e.g., "Organic Chemistry") or a class (e.g., "Grade 11") and see a comparison of courses from different institutes (e.g., Coursera, Khan Academy, local coaching centers).
+
+Comparison Metrics: * Price and Duration.
+
+Student Rating/Sentiment.
+
+Syllabus Coverage (how much it overlaps with the student's current knowledge gaps).
+
+AI Recommendation: The AI should suggest which course to take based on the student's current progress in our app.
+
+Phase 3: Adaptive AI Features
+Explainable Support: Every solution must include a "Why?" section. If a student is wrong, the AI identifies the specific misconception rather than just giving the correct answer.
+
+Confidence Scoring: After every lesson, ask the student "How confident do you feel?" and adjust the next lesson's complexity based on this "Learning Friction" score.
+
+Multilingual Bridge: Allow students to switch languages on the fly. Explain a complex Physics concept in their native tongue, then bridge back to English for technical terms.
+
+Phase 4: UI/UX Presentation (Hackathon Ready)
+Modern Aesthetic: Use a clean, "bento-box" style dashboard layout.
+
+Interactive Visuals: Integrate graphing for Math/Physics and code execution sandboxes for Programming.
+
+Progress Visualization: A "Knowledge Map" (similar to a skill tree in gaming) that lights up as the student masters topics.
