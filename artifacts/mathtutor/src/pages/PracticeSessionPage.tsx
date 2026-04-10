@@ -109,11 +109,16 @@ export default function PracticeSessionPage() {
     if (whyWrong) return;
     setLoadingWhy(true);
     try {
+      const userAnswer = selected ?? "No answer provided (timed out)";
       const res = await fetch("/api/ai/misconception", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ question: currentQ.text, correctAnswer: result.correctAnswer, userAnswer: selected, explanation: result.explanation }),
+        body: JSON.stringify({ question: currentQ.text, correctAnswer: result.correctAnswer, userAnswer, explanation: result.explanation }),
       });
+      if (!res.ok) {
+        setWhyWrong("Could not generate AI explanation. Please try again.");
+        return;
+      }
       const data = await res.json();
       setWhyWrong(data.misconception ?? data.message ?? "Could not generate explanation.");
     } catch {

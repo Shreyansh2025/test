@@ -16,6 +16,11 @@ const SUBJECT_COLORS: Record<string, { bg: string; border: string; text: string;
   "Physics": { bg: "bg-sky-500/10", border: "border-sky-500/40", text: "text-sky-400", glow: "shadow-sky-500/20" },
   "Chemistry": { bg: "bg-emerald-500/10", border: "border-emerald-500/40", text: "text-emerald-400", glow: "shadow-emerald-500/20" },
   "Programming": { bg: "bg-amber-500/10", border: "border-amber-500/40", text: "text-amber-400", glow: "shadow-amber-500/20" },
+  "Biology": { bg: "bg-green-500/10", border: "border-green-500/40", text: "text-green-400", glow: "shadow-green-500/20" },
+  "Economics": { bg: "bg-orange-500/10", border: "border-orange-500/40", text: "text-orange-400", glow: "shadow-orange-500/20" },
+  "History": { bg: "bg-purple-500/10", border: "border-purple-500/40", text: "text-purple-400", glow: "shadow-purple-500/20" },
+  "English": { bg: "bg-pink-500/10", border: "border-pink-500/40", text: "text-pink-400", glow: "shadow-pink-500/20" },
+  "Geography": { bg: "bg-cyan-500/10", border: "border-cyan-500/40", text: "text-cyan-400", glow: "shadow-cyan-500/20" },
 };
 
 const LEARNING_TREE = [
@@ -25,43 +30,84 @@ const LEARNING_TREE = [
       { name: "Algebra Basics", nameHi: "बीजगणित की मूल बातें", level: 1, deps: [] },
       { name: "Quadratic Equations", nameHi: "द्विघात समीकरण", level: 2, deps: [0] },
       { name: "Linear Algebra", nameHi: "रेखीय बीजगणित", level: 2, deps: [0] },
-      { name: "Calculus — Differentiation", nameHi: "कलन — अवकलन", level: 3, deps: [1, 2] },
-      { name: "Calculus — Integration", nameHi: "कलन — समाकलन", level: 4, deps: [3] },
-      { name: "Statistics & Probability", nameHi: "सांख्यिकी और प्रायिकता", level: 3, deps: [1] },
       { name: "Trigonometry", nameHi: "त्रिकोणमिति", level: 2, deps: [0] },
-      { name: "Coordinate Geometry", nameHi: "निर्देशांक ज्यामिति", level: 3, deps: [2, 6] },
+      { name: "Calculus — Differentiation", nameHi: "कलन — अवकलन", level: 3, deps: [1, 2] },
+      { name: "Probability & Statistics", nameHi: "प्रायिकता और सांख्यिकी", level: 3, deps: [1] },
+      { name: "Geometry", nameHi: "ज्यामिति", level: 3, deps: [2, 3] },
+      { name: "Calculus — Integration", nameHi: "कलन — समाकलन", level: 4, deps: [4] },
     ],
   },
   {
     subject: "Physics", icon: "⚡", color: "Physics",
     topics: [
-      { name: "Newton's Laws of Motion", nameHi: "न्यूटन के गति के नियम", level: 1, deps: [] },
-      { name: "Kinematics", nameHi: "गतिविज्ञान", level: 1, deps: [] },
+      { name: "Newton's Laws", nameHi: "न्यूटन के नियम", level: 1, deps: [] },
+      { name: "Kinematics", nameHi: "गतिकी", level: 1, deps: [] },
       { name: "Energy & Work", nameHi: "ऊर्जा और कार्य", level: 2, deps: [0, 1] },
       { name: "Waves & Sound", nameHi: "तरंगें और ध्वनि", level: 3, deps: [2] },
-      { name: "Electromagnetism", nameHi: "विद्युत चुम्बकत्व", level: 3, deps: [2] },
-      { name: "Optics", nameHi: "प्रकाशिकी", level: 3, deps: [3] },
+      { name: "Electrostatics", nameHi: "स्थिरवैद्युतिकी", level: 3, deps: [2] },
     ],
   },
   {
     subject: "Chemistry", icon: "⚗", color: "Chemistry",
     topics: [
-      { name: "Atomic Structure", nameHi: "परमाणु संरचना", level: 1, deps: [] },
+      { name: "Periodic Table", nameHi: "आवर्त सारणी", level: 1, deps: [] },
       { name: "Chemical Bonding", nameHi: "रासायनिक बंधन", level: 2, deps: [0] },
-      { name: "Mole Concept", nameHi: "मोल अवधारणा", level: 2, deps: [0] },
-      { name: "Organic Chemistry Basics", nameHi: "कार्बनिक रसायन मूल बातें", level: 3, deps: [1, 2] },
-      { name: "Equilibrium & Kinetics", nameHi: "साम्यावस्था और गतिकी", level: 3, deps: [2] },
+      { name: "Organic Chemistry Basics", nameHi: "जैविक रसायन की मूल बातें", level: 3, deps: [1] },
     ],
   },
   {
     subject: "Programming", icon: "{}", color: "Programming",
     topics: [
-      { name: "Arrays & Strings", nameHi: "सरणी और स्ट्रिंग", level: 1, deps: [] },
+      { name: "Arrays & Strings", nameHi: "सरणियाँ और तार", level: 1, deps: [] },
       { name: "Time Complexity", nameHi: "समय जटिलता", level: 2, deps: [0] },
-      { name: "Recursion", nameHi: "पुनरावृत्ति", level: 2, deps: [0] },
-      { name: "Sorting Algorithms", nameHi: "क्रमबद्धता एल्गोरिदम", level: 3, deps: [1, 2] },
-      { name: "Dynamic Programming", nameHi: "गतिशील प्रोग्रामिंग", level: 4, deps: [2, 3] },
-      { name: "Graph Algorithms", nameHi: "ग्राफ एल्गोरिदम", level: 4, deps: [3] },
+      { name: "Recursion", nameHi: "पुनरावर्तन", level: 2, deps: [0] },
+      { name: "Sorting Algorithms", nameHi: "क्रमबद्ध एल्गोरिदम", level: 3, deps: [1, 2] },
+    ],
+  },
+  {
+    subject: "Biology", icon: "🧬", color: "Biology",
+    topics: [
+      { name: "Cell Biology", nameHi: "कोशिका जीव विज्ञान", level: 1, deps: [] },
+      { name: "Genetics & DNA", nameHi: "आनुवंशिकी और डीएनए", level: 2, deps: [0] },
+      { name: "Human Anatomy", nameHi: "मानव शरीर रचना", level: 2, deps: [0] },
+      { name: "Ecology & Environment", nameHi: "पारिस्थितिकी और पर्यावरण", level: 3, deps: [1] },
+      { name: "Evolution", nameHi: "विकास", level: 3, deps: [1] },
+    ],
+  },
+  {
+    subject: "Economics", icon: "📈", color: "Economics",
+    topics: [
+      { name: "Supply & Demand", nameHi: "आपूर्ति और मांग", level: 1, deps: [] },
+      { name: "Market Structures", nameHi: "बाजार संरचनाएं", level: 2, deps: [0] },
+      { name: "GDP & National Income", nameHi: "जीडीपी और राष्ट्रीय आय", level: 2, deps: [0] },
+      { name: "Inflation & Monetary Policy", nameHi: "मुद्रास्फीति और मौद्रिक नीति", level: 3, deps: [2] },
+    ],
+  },
+  {
+    subject: "History", icon: "🏛️", color: "History",
+    topics: [
+      { name: "Ancient Civilizations", nameHi: "प्राचीन सभ्यताएं", level: 1, deps: [] },
+      { name: "Medieval Period", nameHi: "मध्यकालीन काल", level: 2, deps: [0] },
+      { name: "World Wars", nameHi: "विश्व युद्ध", level: 3, deps: [1] },
+      { name: "Indian Independence Movement", nameHi: "भारतीय स्वतंत्रता आंदोलन", level: 3, deps: [1] },
+    ],
+  },
+  {
+    subject: "English", icon: "📖", color: "English",
+    topics: [
+      { name: "Parts of Speech", nameHi: "भाषा के अंग", level: 1, deps: [] },
+      { name: "Tenses", nameHi: "काल", level: 2, deps: [0] },
+      { name: "Reading Comprehension", nameHi: "पठन बोध", level: 2, deps: [0] },
+      { name: "Vocabulary & Synonyms", nameHi: "शब्द भंडार और समानार्थी", level: 3, deps: [1, 2] },
+    ],
+  },
+  {
+    subject: "Geography", icon: "🌍", color: "Geography",
+    topics: [
+      { name: "World Continents & Oceans", nameHi: "विश्व के महाद्वीप और महासागर", level: 1, deps: [] },
+      { name: "Climate & Weather", nameHi: "जलवायु और मौसम", level: 2, deps: [0] },
+      { name: "Maps & Coordinates", nameHi: "मानचित्र और निर्देशांक", level: 2, deps: [0] },
+      { name: "Natural Resources", nameHi: "प्राकृतिक संसाधन", level: 3, deps: [1] },
     ],
   },
 ];

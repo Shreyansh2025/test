@@ -20,6 +20,11 @@ const SUBJECT_ICONS: Record<string, string> = {
   "Physics": "⚡",
   "Chemistry": "⚗",
   "Programming": "{ }",
+  "Biology": "🧬",
+  "Economics": "📈",
+  "History": "🏛️",
+  "English": "📖",
+  "Geography": "🌍",
 };
 
 function TopicList({ subjectId }: { subjectId: number }) {

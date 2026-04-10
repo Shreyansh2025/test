@@ -1,5 +1,5 @@
-import { eq, and, sql } from "drizzle-orm";
-import { db, usersTable, badgesTable, userBadgesTable, battleParticipantsTable, battlesTable } from "@workspace/db";
+import { eq, and, sql, desc } from "drizzle-orm";
+import { db, usersTable, badgesTable, userBadgesTable, battleParticipantsTable, battlesTable, userAnswersTable } from "@workspace/db";
 
 export async function checkAndAwardBadges(userId: number): Promise<void> {
   try {
@@ -25,6 +25,14 @@ export async function checkAndAwardBadges(userId: number): Promise<void> {
       ));
     const wins = Number(battleWins[0]?.count ?? 0);
 
+    // Check consecutive correct answers (last 10 answers all correct)
+    const recentAnswers = await db.select({ isCorrect: userAnswersTable.isCorrect })
+      .from(userAnswersTable)
+      .where(eq(userAnswersTable.userId, userId))
+      .orderBy(desc(userAnswersTable.createdAt))
+      .limit(10);
+    const consecutiveCorrect = recentAnswers.length >= 10 && recentAnswers.every(a => a.isCorrect === 1);
+
     const toAward: typeof allBadges = [];
 
     for (const badge of allBadges) {
@@ -42,6 +50,7 @@ export async function checkAndAwardBadges(userId: number): Promise<void> {
       else if (cond === "battle_win_10" && wins >= 10) shouldAward = true;
       else if (cond === "xp_1000" && xp >= 1000) shouldAward = true;
       else if (cond === "level_10" && level >= 10) shouldAward = true;
+      else if (cond === "correct_10" && consecutiveCorrect) shouldAward = true;
 
       if (shouldAward) toAward.push(badge);
     }

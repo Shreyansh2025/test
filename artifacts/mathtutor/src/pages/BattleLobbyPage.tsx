@@ -44,10 +44,14 @@ export default function BattleLobbyPage() {
   async function handleJoin(e: React.FormEvent) {
     e.preventDefault();
     if (!joinCode.trim()) return;
-    const battleList = (battles as any[]) ?? [];
-    const battle = battleList.find((b: any) => b.code === joinCode.toUpperCase());
-    if (!battle) { toast({ title: "Battle not found", variant: "destructive" }); return; }
-    navigate(`/battle/${battle.id}`);
+    try {
+      const res = await fetch(`/api/battles/code/${joinCode.toUpperCase().trim()}`);
+      if (!res.ok) { toast({ title: "Battle not found. Check the code and try again.", variant: "destructive" }); return; }
+      const battle = await res.json();
+      navigate(`/battle/${battle.id}`);
+    } catch {
+      toast({ title: "Could not connect. Please try again.", variant: "destructive" });
+    }
   }
 
   const battleList = (battles as any[]) ?? [];

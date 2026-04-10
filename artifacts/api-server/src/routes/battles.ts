@@ -17,6 +17,40 @@ function getAuthUserId(req: any): number | null {
   return verifyToken(token)?.userId ?? null;
 }
 
+router.get("/battles/code/:code", async (req, res): Promise<void> => {
+  const code = (Array.isArray(req.params.code) ? req.params.code[0] : req.params.code).toUpperCase();
+
+  const [battle] = await db.select({
+    battle: battlesTable,
+    host: usersTable,
+    subject: subjectsTable,
+  }).from(battlesTable)
+    .leftJoin(usersTable, eq(battlesTable.hostId, usersTable.id))
+    .leftJoin(subjectsTable, eq(battlesTable.subjectId, subjectsTable.id))
+    .where(eq(battlesTable.code, code))
+    .limit(1);
+
+  if (!battle) { res.status(404).json({ error: "Battle not found" }); return; }
+
+  const participants = await db.select({ count: battleParticipantsTable.id }).from(battleParticipantsTable)
+    .where(eq(battleParticipantsTable.battleId, battle.battle.id));
+
+  res.json({
+    id: battle.battle.id,
+    code: battle.battle.code,
+    subjectId: battle.battle.subjectId,
+    subjectName: battle.subject?.name ?? "Math",
+    hostId: battle.battle.hostId,
+    hostName: battle.host?.displayName ?? "Unknown",
+    status: battle.battle.status,
+    maxParticipants: battle.battle.maxParticipants,
+    currentParticipants: participants.length,
+    questionCount: battle.battle.questionCount,
+    timePerQuestion: battle.battle.timePerQuestion,
+    createdAt: battle.battle.createdAt,
+  });
+});
+
 router.get("/battles", async (_req, res): Promise<void> => {
   const battles = await db.select({
     battle: battlesTable,

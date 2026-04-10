@@ -47,6 +47,13 @@ export default function BattleArenaPage() {
     }
   }, [battle?.id]);
 
+  // Poll for live scores every 3 seconds
+  useEffect(() => {
+    if (gameOver || !battleId) return;
+    const poll = setInterval(() => { refetch(); }, 3000);
+    return () => clearInterval(poll);
+  }, [gameOver, battleId]);
+
   // Timer
   useEffect(() => {
     if (!battle || gameOver || !currentQ || result) return;

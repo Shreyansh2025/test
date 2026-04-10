@@ -6,22 +6,47 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { useListFriends, useListFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useRejectFriendRequest } from "@workspace/api-client-react";
+import { useListFriends, useListFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useRejectFriendRequest, useCreateBattle, useListSubjects } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation } from "wouter";
+import { useAuthContext } from "@/components/AuthProvider";
 
 export default function FriendsPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [, navigate] = useLocation();
   const [username, setUsername] = useState("");
   const [sending, setSending] = useState(false);
+  const [challenging, setChallenging] = useState<number | null>(null);
 
   const { data: friends, isLoading: loadingFriends } = useListFriends();
   const { data: requests, isLoading: loadingReqs } = useListFriendRequests();
+  const { data: subjects } = useListSubjects();
   const sendReq = useSendFriendRequest();
   const acceptReq = useAcceptFriendRequest();
   const rejectReq = useRejectFriendRequest();
+  const createBattle = useCreateBattle();
+
+  async function handleChallenge(friendUserId: number) {
+    const subjectList = (subjects as any[]) ?? [];
+    const firstSubject = subjectList[0];
+    if (!firstSubject) { toast({ title: "No subjects available", variant: "destructive" }); return; }
+    setChallenging(friendUserId);
+    try {
+      const battle = await createBattle.mutateAsync({
+        subjectId: firstSubject.id,
+        questionCount: 10,
+        timePerQuestion: 30,
+      });
+      toast({ title: `Battle created! Share code: ${(battle as any).code}` });
+      navigate(`/battle/${(battle as any).id}`);
+    } catch {
+      toast({ title: "Failed to create battle", variant: "destructive" });
+    } finally {
+      setChallenging(null);
+    }
+  }
 
   const friendList = (friends as any[]) ?? [];
   const reqList = (requests as any[]) ?? [];
@@ -126,8 +151,15 @@ export default function FriendsPage() {
                           <span className="text-xs text-muted-foreground">Lv.{f.level}</span>
                         </div>
                       </div>
-                      <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-shrink-0">
-                        <Swords className="w-3.5 h-3.5" />Challenge
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs flex-shrink-0"
+                        onClick={() => handleChallenge(f.userId)}
+                        disabled={challenging === f.userId}
+                      >
+                        <Swords className="w-3.5 h-3.5" />
+                        {challenging === f.userId ? "Creating..." : "Challenge"}
                       </Button>
                     </div>
                   </CardContent>
