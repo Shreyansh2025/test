@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useListFriends, useListFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useRejectFriendRequest } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLocation } from "wouter";
 
 export default function FriendsPage() {
   const { toast } = useToast();

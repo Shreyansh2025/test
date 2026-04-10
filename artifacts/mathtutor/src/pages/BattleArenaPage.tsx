@@ -79,13 +79,19 @@ export default function BattleArenaPage() {
     }
   }
 
-  function handleNext() {
+  async function handleNext() {
     if (questionIdx < questions.length - 1) {
       setQuestionIdx(i => i + 1);
       setSelected(null);
       setResult(null);
     } else {
       setGameOver(true);
+      try {
+        await fetch(`/api/battles/${battleId}/finish`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {}
     }
   }
 

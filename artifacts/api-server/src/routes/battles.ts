@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
-import { eq, and, inArray } from "drizzle-orm";
-import { db, battlesTable, battleParticipantsTable, usersTable, subjectsTable, questionsTable } from "@workspace/db";
+import { eq, and, inArray, sql, desc } from "drizzle-orm";
+import { db, battlesTable, battleParticipantsTable, usersTable, subjectsTable, questionsTable, topicsTable } from "@workspace/db";
 import { CreateBattleBody, SubmitBattleAnswerBody } from "@workspace/api-zod";
 import { extractToken, verifyToken } from "../lib/auth";
+import { checkAndAwardBadges } from "../lib/badges";
 
 const router: IRouter = Router();
 
@@ -57,7 +58,14 @@ router.post("/battles", async (req, res): Promise<void> => {
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const qCount = parsed.data.questionCount ?? 10;
-  const questions = await db.select({ id: questionsTable.id }).from(questionsTable).limit(qCount);
+  const topicIds = await db.select({ id: topicsTable.id }).from(topicsTable)
+    .where(eq(topicsTable.subjectId, parsed.data.subjectId));
+  const questions = topicIds.length > 0
+    ? await db.select({ id: questionsTable.id }).from(questionsTable)
+        .where(inArray(questionsTable.topicId, topicIds.map(t => t.id)))
+        .orderBy(sql`RANDOM()`)
+        .limit(qCount)
+    : await db.select({ id: questionsTable.id }).from(questionsTable).limit(qCount);
   const questionIds = questions.map(q => q.id);
 
   const code = randomCode();
@@ -284,6 +292,37 @@ router.post("/battles/:id/submit", async (req, res): Promise<void> => {
       currentScore: pointsEarned,
     });
   }
+});
+
+router.post("/battles/:id/finish", async (req, res): Promise<void> => {
+  const userId = getAuthUserId(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  await db.update(battlesTable).set({ status: "finished" }).where(eq(battlesTable.id, id));
+
+  const participants = await db.select({
+    bp: battleParticipantsTable,
+    user: usersTable,
+  }).from(battleParticipantsTable)
+    .leftJoin(usersTable, eq(battleParticipantsTable.userId, usersTable.id))
+    .where(eq(battleParticipantsTable.battleId, id));
+
+  const sorted = [...participants].sort((a, b) => b.bp.score - a.bp.score);
+  const winner = sorted[0];
+
+  if (winner?.bp.userId) {
+    await checkAndAwardBadges(winner.bp.userId);
+  }
+
+  res.json({
+    finished: true,
+    winnerId: winner?.bp.userId ?? null,
+    winnerName: winner?.user?.displayName ?? "Unknown",
+  });
 });
 
 export default router;

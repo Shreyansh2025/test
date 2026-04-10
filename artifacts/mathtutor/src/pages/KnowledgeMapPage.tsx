@@ -5,9 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/components/AuthProvider";
+import { useGetTopicStats } from "@workspace/api-client-react";
 
 const SUBJECT_COLORS: Record<string, { bg: string; border: string; text: string; glow: string }> = {
   "Mathematics": { bg: "bg-violet-500/10", border: "border-violet-500/40", text: "text-violet-400", glow: "shadow-violet-500/20" },
@@ -106,9 +108,10 @@ function TopicNode({ topic, subjectColor, status, idx, total }: {
   );
 }
 
-function SubjectTree({ subject, completedTopics }: {
+function SubjectTree({ subject, completedTopics, inProgressTopics }: {
   subject: typeof LEARNING_TREE[number];
   completedTopics: Set<string>;
+  inProgressTopics: Set<string>;
 }) {
   const { t } = useLanguage();
   const color = SUBJECT_COLORS[subject.color] ?? SUBJECT_COLORS["Mathematics"];
@@ -119,6 +122,7 @@ function SubjectTree({ subject, completedTopics }: {
     if (completedTopics.has(topic.name)) return "mastered";
     const depsMastered = topic.deps.every(d => completedTopics.has(subject.topics[d]?.name ?? ""));
     if (!depsMastered) return "locked";
+    if (inProgressTopics.has(topic.name)) return "in-progress";
     if (idx === 0 || (idx <= 2 && masteredCount > 0)) return "in-progress";
     return "available";
   };
@@ -178,10 +182,20 @@ function SubjectTree({ subject, completedTopics }: {
 
 export default function KnowledgeMapPage() {
   const { t } = useLanguage();
-  const { user } = useAuthContext();
+  const { user, token } = useAuthContext();
   const [activeSubject, setActiveSubject] = useState<string | null>(null);
 
-  const completedTopics = new Set<string>(["Algebra Basics", "Newton's Laws of Motion", "Arrays & Strings"]);
+  const { data: topicStatsData, isLoading: loadingStats } = useGetTopicStats({});
+
+  const topicStats = (topicStatsData as any[]) ?? [];
+  const masteredTopicNames = new Set<string>(
+    topicStats.filter((s: any) => s.accuracy >= 0.8 && s.answered >= 3).map((s: any) => s.topicName)
+  );
+  const inProgressTopicNames = new Set<string>(
+    topicStats.filter((s: any) => s.answered > 0 && s.accuracy < 0.8).map((s: any) => s.topicName)
+  );
+
+  const completedTopics = masteredTopicNames;
   const totalTopics = LEARNING_TREE.reduce((acc, s) => acc + s.topics.length, 0);
   const masteredTopics = completedTopics.size;
   const overallProgress = Math.round((masteredTopics / totalTopics) * 100);
@@ -224,8 +238,10 @@ export default function KnowledgeMapPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {filteredTree.map(subject => (
-          <SubjectTree key={subject.subject} subject={subject} completedTopics={completedTopics} />
+        {loadingStats ? (
+          <div className="space-y-4">{[1,2,3].map(i => <Skeleton key={i} className="h-48 rounded-xl" />)}</div>
+        ) : filteredTree.map(subject => (
+          <SubjectTree key={subject.subject} subject={subject} completedTopics={completedTopics} inProgressTopics={inProgressTopicNames} />
         ))}
       </div>
 

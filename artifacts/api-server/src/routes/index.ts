@@ -13,6 +13,7 @@ import notificationsRouter from "./notifications";
 import openaiTutorRouter from "./openai-tutor";
 import learningPathsRouter from "./learning-paths";
 import coursesRouter from "./courses";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(notificationsRouter);
 router.use(openaiTutorRouter);
 router.use(learningPathsRouter);
 router.use(coursesRouter);
+router.use(aiRouter);
 
 export default router;

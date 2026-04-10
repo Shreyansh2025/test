@@ -4,6 +4,7 @@ import { db, questionsTable, usersTable, userAnswersTable, userTopicStatsTable, 
 import { SubmitAnswerBody, SubmitAnswerParams, GenerateQuestionBody, ListQuestionsQueryParams } from "@workspace/api-zod";
 import { extractToken, verifyToken } from "../lib/auth";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { checkAndAwardBadges, checkSpeedBadge } from "../lib/badges";
 
 const router: IRouter = Router();
 
@@ -96,6 +97,12 @@ router.post("/practice/questions/:id/submit", async (req, res): Promise<void> =>
           xpEarned,
         });
       }
+
+      const timeTaken = parsed.data.timeTaken ?? 999;
+      if (isCorrect && timeTaken <= 5) {
+        await checkSpeedBadge(payload.userId, timeTaken);
+      }
+      await checkAndAwardBadges(payload.userId);
     }
   }
 
