@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRoute, Link } from "wouter";
 import { ArrowLeft, CheckCircle2, XCircle, Lightbulb, ChevronRight, Timer, Zap, RefreshCw, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,8 +24,11 @@ export default function PracticeSessionPage() {
   const { token, updateUser, user } = useAuthContext();
   const { toast } = useToast();
   const lang = getStoredLanguage();
+  const aiMode = new URLSearchParams(window.location.search).get("mode") === "ai";
 
   const { data: questions, isLoading, refetch } = useListQuestions({ topicId, limit: 10 });
+  const [aiQuestions, setAiQuestions] = useState<any[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
 
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -39,27 +42,110 @@ export default function PracticeSessionPage() {
   const [showConfidence, setShowConfidence] = useState(false);
   const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0, xpEarned: 0 });
 
-  const currentQ = questions?.[idx] as any;
-  const total = questions?.length ?? 0;
+  const activeQuestions = aiMode ? aiQuestions : (questions as any[] | undefined);
+  const currentQ = activeQuestions?.[idx] as any;
+  const total = activeQuestions?.length ?? 0;
+
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+
+  const generateAiQuiz = useCallback(async () => {
+    if (!topicId) return;
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/practice/generate-ai-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ topicId, language: lang }),
+      });
+      const raw = await res.text();
+      let payload: { questions?: unknown[]; error?: string } = {};
+      try {
+        payload = raw ? JSON.parse(raw) : {};
+      } catch {
+        throw new Error("AI service returned invalid response.");
+      }
+      if (!res.ok) throw new Error(payload.error ?? "Failed to generate AI quiz");
+      const list = Array.isArray(payload.questions) ? payload.questions : [];
+      const generated = list.map((item: any, qIdx: number) => {
+        const difficulty = item.difficulty === "easy" || item.difficulty === "hard" || item.difficulty === "medium"
+          ? item.difficulty
+          : "medium";
+        const points = typeof item.points === "number"
+          ? item.points
+          : difficulty === "easy"
+            ? 10
+            : difficulty === "hard"
+              ? 25
+              : 15;
+        const timeLimit = typeof item.timeLimit === "number"
+          ? item.timeLimit
+          : difficulty === "easy"
+            ? 30
+            : difficulty === "hard"
+              ? 60
+              : 45;
+        return {
+          /** Stable unique id per slot so timer effect tracks question changes (avoid duplicate -1…). */
+          id: `ai-${topicId}-${qIdx}`,
+          topicId,
+          text: item.question ?? "Generated question",
+          textHi: lang === "hi" ? (item.question ?? "Generated question") : null,
+          options: Array.isArray(item.options) ? item.options : [],
+          difficulty,
+          points,
+          timeLimit,
+          aiMeta: {
+            correctAnswer: item.correctAnswer ?? "",
+            explanation: item.explanation ?? "",
+            steps: Array.isArray(item.steps) ? item.steps : [],
+          },
+        };
+      });
+      setAiQuestions(generated.filter((q) => Array.isArray(q.options) && q.options.length > 0));
+      setIdx(0);
+      setSelected(null);
+      setResult(null);
+      setShowExplanation(false);
+      setShowWhyWrong(false);
+      setWhyWrong(null);
+      setSessionStats({ correct: 0, total: 0, xpEarned: 0 });
+      setShowConfidence(false);
+    } catch (err: any) {
+      toastRef.current({ title: err?.message ?? "Failed to generate AI quiz", variant: "destructive" });
+    } finally {
+      setAiLoading(false);
+    }
+  }, [topicId, token, lang]);
 
   useEffect(() => {
-    if (!currentQ || result || submitting) return;
-    setTimeLeft(currentQ.timeLimit ?? 30);
-    const interval = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) {
-          clearInterval(interval);
-          handleSubmit(null);
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [idx, currentQ?.id, result]);
+    if (!aiMode || !topicId) return;
+    void generateAiQuiz();
+  }, [aiMode, topicId, generateAiQuiz]);
+
+  const handleSubmitRef = useRef<(answer: string | null) => Promise<void>>(async () => {});
 
   async function handleSubmit(answer: string | null) {
     if (submitting || result) return;
+    if (aiMode && currentQ?.aiMeta) {
+      const isCorrect = (answer ?? "") === currentQ.aiMeta.correctAnswer;
+      const xpEarned = isCorrect ? (currentQ.points ?? 10) : Math.floor((currentQ.points ?? 10) * 0.1);
+      setResult({
+        correct: isCorrect,
+        correctAnswer: currentQ.aiMeta.correctAnswer,
+        xpEarned,
+        explanation: currentQ.aiMeta.explanation,
+        explanationHi: lang === "hi" ? currentQ.aiMeta.explanation : null,
+        steps: currentQ.aiMeta.steps ?? [],
+      });
+      setSessionStats(s => ({
+        correct: s.correct + (isCorrect ? 1 : 0),
+        total: s.total + 1,
+        xpEarned: s.xpEarned + xpEarned,
+      }));
+      if (isCorrect) updateUser({ xp: (user?.xp ?? 0) + xpEarned });
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch(`/api/practice/questions/${currentQ.id}/submit`, {
@@ -78,11 +164,30 @@ export default function PracticeSessionPage() {
         updateUser({ xp: (user?.xp ?? 0) + (data.xpEarned ?? 0) });
       }
     } catch {
-      toast({ title: "Failed to submit answer", variant: "destructive" });
+      toastRef.current({ title: "Failed to submit answer", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   }
+
+  handleSubmitRef.current = handleSubmit;
+
+  useEffect(() => {
+    if (!currentQ || result || submitting) return;
+    const limit = currentQ.timeLimit ?? 30;
+    setTimeLeft(limit);
+    const interval = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(interval);
+          void handleSubmitRef.current(null);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [idx, currentQ?.id, result, submitting]);
 
   function handleOptionClick(option: string) {
     if (result || submitting) return;
@@ -128,11 +233,11 @@ export default function PracticeSessionPage() {
     }
   }
 
-  if (isLoading) return (
-    <div className="p-6 flex items-center justify-center min-h-[60vh]">
+  if (isLoading || (aiMode && aiLoading)) return (
+    <div className="p-6 flex items-center justify-center min-h-[60vh]" data-no-auto-translate="true">
       <div className="text-center">
         <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin mx-auto mb-3" />
-        <p className="text-muted-foreground">Loading questions...</p>
+        <p className="text-muted-foreground">{aiMode ? "Generating AI quiz..." : "Loading questions..."}</p>
       </div>
     </div>
   );
@@ -140,7 +245,7 @@ export default function PracticeSessionPage() {
   // Completed all questions — show confidence rating first, then results
   if (showConfidence && total > 0) {
     return (
-      <div className="p-4 sm:p-6 max-w-lg mx-auto">
+      <div className="p-4 sm:p-6 max-w-lg mx-auto" data-no-auto-translate="true">
         <ConfidenceRating
           topicName={questions?.[0] ? `Topic #${topicId}` : "this topic"}
           sessionCorrect={sessionStats.correct}
@@ -156,7 +261,7 @@ export default function PracticeSessionPage() {
   if (!showConfidence && idx >= total && total > 0) {
     const pct = Math.round((sessionStats.correct / sessionStats.total) * 100);
     return (
-      <div className="p-4 sm:p-6 max-w-lg mx-auto">
+      <div className="p-4 sm:p-6 max-w-lg mx-auto" data-no-auto-translate="true">
         <Card className="text-center">
           <CardContent className="py-10">
             <div className="text-5xl mb-4">{pct >= 80 ? "🎉" : pct >= 50 ? "👍" : "💪"}</div>
@@ -176,7 +281,15 @@ export default function PracticeSessionPage() {
               </div>
             </div>
             <div className="flex gap-3 justify-center">
-              <Button onClick={() => { setIdx(0); setSelected(null); setResult(null); setShowConfidence(false); setSessionStats({ correct: 0, total: 0, xpEarned: 0 }); refetch(); }}>
+              <Button onClick={() => {
+                setIdx(0);
+                setSelected(null);
+                setResult(null);
+                setShowConfidence(false);
+                setSessionStats({ correct: 0, total: 0, xpEarned: 0 });
+                if (aiMode) void generateAiQuiz();
+                else refetch();
+              }}>
                 <RefreshCw className="w-4 h-4 mr-2" />Try Again
               </Button>
               <Link href="/practice"><Button variant="outline">Back to Subjects</Button></Link>
@@ -188,14 +301,24 @@ export default function PracticeSessionPage() {
   }
 
   if (!currentQ) return (
-    <div className="p-6 text-center">
-      <p className="text-muted-foreground">No questions available for this topic.</p>
-      <Link href="/practice"><Button className="mt-4">Back to Practice</Button></Link>
+    <div className="p-6 text-center" data-no-auto-translate="true">
+      <p className="text-muted-foreground">{aiMode ? "Could not generate AI quiz for this topic." : "No questions available for this topic."}</p>
+      <div className="mt-4 flex items-center justify-center gap-2">
+        {!aiMode && topicId && (
+          <Button onClick={() => { window.location.href = `/practice/${topicId}?mode=ai`; }}>Try AI Quiz</Button>
+        )}
+        {aiMode && (
+          <Button onClick={() => void generateAiQuiz()}>
+            <RefreshCw className="w-4 h-4 mr-2" />Regenerate
+          </Button>
+        )}
+        <Link href="/practice"><Button variant="outline">Back to Practice</Button></Link>
+      </div>
     </div>
   );
 
   return (
-    <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-4">
+    <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-4" data-no-auto-translate="true">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/practice"><Button variant="ghost" size="sm" className="gap-1.5"><ArrowLeft className="w-4 h-4" />Back</Button></Link>
@@ -210,25 +333,25 @@ export default function PracticeSessionPage() {
         </div>
       </div>
 
-      {/* Question */}
-      <Card>
+      {/* Question — must stay out of GlobalAutoTranslate: it reuses text nodes and restores stale “original” text */}
+      <Card key={String(currentQ.id)}>
         <CardHeader>
           <div className="flex items-center gap-2 mb-2">
             <Badge className={DIFFICULTY_COLORS[currentQ.difficulty ?? "medium"]}>{currentQ.difficulty}</Badge>
             <Badge variant="outline" className="text-xs"><Zap className="w-3 h-3 mr-1" />{currentQ.points} XP</Badge>
           </div>
-          <CardTitle className="text-lg leading-relaxed font-medium">
+          <CardTitle className="text-lg leading-relaxed font-medium" lang={lang === "hi" ? "hi" : "en"}>
             {lang === "hi" && currentQ.textHi ? currentQ.textHi : currentQ.text}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {(currentQ.options as string[]).map((opt: string) => {
+          {(currentQ.options as string[]).map((opt: string, optIdx: number) => {
             const isSelected = selected === opt;
             const isCorrect = result && opt === result.correctAnswer;
             const isWrong = result && isSelected && !result.correct;
             return (
               <button
-                key={opt}
+                key={`${String(currentQ.id)}-${optIdx}`}
                 onClick={() => handleOptionClick(opt)}
                 disabled={!!result || submitting}
                 className={cn(

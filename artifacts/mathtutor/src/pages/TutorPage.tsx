@@ -37,7 +37,7 @@ export default function TutorPage() {
     if (!newTitle.trim()) return;
     setCreating(true);
     try {
-      const conv = await createConv.mutateAsync({ title: newTitle.trim() });
+      const conv = await createConv.mutateAsync({ data: { title: newTitle.trim() } });
       setNewTitle("");
       navigate(`/tutor/${(conv as any).id}`);
     } catch {
@@ -51,7 +51,7 @@ export default function TutorPage() {
     setCreating(true);
     try {
       const title = prompt ?? `Tutor Session — ${new Date().toLocaleDateString()}`;
-      const conv = await createConv.mutateAsync({ title });
+      const conv = await createConv.mutateAsync({ data: { title } });
       const url = prompt ? `/tutor/${(conv as any).id}?q=${encodeURIComponent(prompt)}` : `/tutor/${(conv as any).id}`;
       navigate(url);
     } catch {
@@ -65,7 +65,7 @@ export default function TutorPage() {
     e.preventDefault();
     e.stopPropagation();
     try {
-      await deleteConv.mutateAsync(id);
+      await deleteConv.mutateAsync({ id });
       refetch();
     } catch {
       toast({ title: "Failed to delete", variant: "destructive" });

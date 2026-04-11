@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { BrainCircuit, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,39 @@ import { Redirect } from "wouter";
 
 export default function RegisterPage() {
   const [, navigate] = useLocation();
-  const { login, isAuthenticated } = useAuthContext();
+  const { login, logout, isAuthenticated, user, isAuthReady } = useAuthContext();
   const { toast } = useToast();
-  const [form, setForm] = useState({ username: "", email: "", password: "", displayName: "", language: "en" });
+  const [form, setForm] = useState({
+    username: "",
+    email: "",
+    password: "",
+    displayName: "",
+    language: "en",
+    role: "student" as "student" | "teacher" | "admin",
+    inviteCode: "",
+  });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  if (isAuthenticated) return <Redirect to="/dashboard" />;
+  const routeByRole = (role?: "student" | "teacher" | "admin") =>
+    role === "admin" ? "/admin-dashboard" : role === "teacher" ? "/teacher-dashboard" : "/dashboard";
+
+  useEffect(() => {
+    if (isAuthenticated && isAuthReady && !user) {
+      logout();
+    }
+  }, [isAuthenticated, isAuthReady, user, logout]);
+
+  if (isAuthenticated && !isAuthReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">
+        Restoring session…
+      </div>
+    );
+  }
+  if (isAuthenticated && isAuthReady && user) {
+    return <Redirect to={routeByRole(user.role)} />;
+  }
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }));
@@ -41,8 +67,8 @@ export default function RegisterPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Registration failed");
       login(data.token, data.user);
-      toast({ title: "Welcome to MathMind! 🎉" });
-      navigate("/dashboard");
+      toast({ title: "Welcome to AI Tutor! 🎉" });
+      navigate(routeByRole(data.user?.role));
     } catch (err: any) {
       toast({ title: err.message, variant: "destructive" });
     } finally {
@@ -59,7 +85,7 @@ export default function RegisterPage() {
               <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
                 <BrainCircuit className="w-5 h-5 text-white" />
               </div>
-              <span className="font-bold text-xl text-foreground">MathMind</span>
+              <span className="font-bold text-xl text-foreground">AI Tutor</span>
             </div>
           </Link>
         </div>
@@ -103,6 +129,35 @@ export default function RegisterPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label>Portal Type</Label>
+                <Select
+                  value={form.role}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, role: v as "student" | "teacher" | "admin" }))
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="teacher">Teacher</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {form.role !== "student" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="inviteCode">
+                    {form.role === "teacher" ? "Teacher Invite Code" : "Admin Invite Code"}
+                  </Label>
+                  <Input
+                    id="inviteCode"
+                    value={form.inviteCode}
+                    onChange={set("inviteCode")}
+                    placeholder="Enter invite code"
+                  />
+                </div>
+              )}
               <Button type="submit" className="w-full btn-glow font-semibold mt-1" disabled={loading}>
                 {loading ? "Creating account..." : "Create Free Account"}
               </Button>

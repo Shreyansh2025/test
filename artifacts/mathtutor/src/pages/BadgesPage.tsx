@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useListBadges, useGetMyBadges } from "@workspace/api-client-react";
+import { useAuthContext } from "@/components/AuthProvider";
 import { cn } from "@/lib/utils";
 
 const RARITY_COLORS: Record<string, string> = {
@@ -28,8 +29,11 @@ const DEFAULT_BADGES = [
 ];
 
 export default function BadgesPage() {
+  const { isAuthenticated } = useAuthContext();
   const { data: allBadges, isLoading: loadingAll } = useListBadges();
-  const { data: myBadges, isLoading: loadingMy } = useGetMyBadges();
+  const { data: myBadges, isLoading: loadingMy } = useGetMyBadges({
+    query: { enabled: isAuthenticated },
+  });
 
   const earnedIds = new Set(((myBadges as any[]) ?? []).map((mb: any) => mb.badgeId));
   const badges = (allBadges as any[])?.length > 0 ? (allBadges as any[]) : DEFAULT_BADGES;

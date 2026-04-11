@@ -35,9 +35,11 @@ export default function FriendsPage() {
     setChallenging(friendUserId);
     try {
       const battle = await createBattle.mutateAsync({
-        subjectId: firstSubject.id,
-        questionCount: 10,
-        timePerQuestion: 30,
+        data: {
+          subjectId: firstSubject.id,
+          questionCount: 10,
+          timePerQuestion: 30,
+        },
       });
       toast({ title: `Battle created! Share code: ${(battle as any).code}` });
       navigate(`/battle/${(battle as any).id}`);
@@ -56,7 +58,7 @@ export default function FriendsPage() {
     if (!username.trim()) return;
     setSending(true);
     try {
-      await sendReq.mutateAsync({ toUsername: username.trim() });
+      await sendReq.mutateAsync({ data: { toUsername: username.trim() } });
       setUsername("");
       toast({ title: "Friend request sent! 🎉" });
     } catch (err: any) {
@@ -68,7 +70,7 @@ export default function FriendsPage() {
 
   async function handleAccept(id: number) {
     try {
-      await acceptReq.mutateAsync(id);
+      await acceptReq.mutateAsync({ id });
       qc.invalidateQueries();
       toast({ title: "Friend added! 👋" });
     } catch {
@@ -78,7 +80,7 @@ export default function FriendsPage() {
 
   async function handleReject(id: number) {
     try {
-      await rejectReq.mutateAsync(id);
+      await rejectReq.mutateAsync({ id });
       qc.invalidateQueries();
     } catch {
       toast({ title: "Failed to reject", variant: "destructive" });

@@ -14,6 +14,8 @@ import openaiTutorRouter from "./openai-tutor";
 import learningPathsRouter from "./learning-paths";
 import coursesRouter from "./courses";
 import aiRouter from "./ai";
+import i18nRouter from "./i18n";
+import teacherAdminRouter from "./teacher-admin";
 
 const router: IRouter = Router();
 
@@ -32,5 +34,7 @@ router.use(openaiTutorRouter);
 router.use(learningPathsRouter);
 router.use(coursesRouter);
 router.use(aiRouter);
+router.use(i18nRouter);
+router.use(teacherAdminRouter);
 
 export default router;

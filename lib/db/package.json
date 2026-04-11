@@ -10,7 +10,8 @@
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
-    "seed": "npx tsx src/seed.ts"
+    "seed": "pnpm exec tsx src/seed.ts",
+    "seed:upsert": "pnpm exec tsx src/seed-upsert.ts"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",
@@ -22,6 +23,7 @@
     "@types/node": "catalog:",
     "@types/pg": "^8.18.0",
     "dotenv": "^17.4.1",
-    "drizzle-kit": "^0.31.9"
+    "drizzle-kit": "^0.31.9",
+    "tsx": "catalog:"
   }
 }

@@ -29,10 +29,16 @@ export default function BattleLobbyPage() {
     setCreating(true);
     try {
       const b = await createBattle.mutateAsync({
-        subjectId: parseInt(form.subjectId),
-        questionCount: parseInt(form.questionCount),
-        timePerQuestion: parseInt(form.timePerQuestion),
+        data: {
+          subjectId: parseInt(form.subjectId, 10),
+          questionCount: parseInt(form.questionCount, 10),
+          timePerQuestion: parseInt(form.timePerQuestion, 10),
+        },
       });
+      const code = (b as { code?: string }).code;
+      if (code) {
+        toast({ title: "Battle created", description: `Share code: ${code}` });
+      }
       navigate(`/battle/${(b as any).id}`);
     } catch {
       toast({ title: "Failed to create battle", variant: "destructive" });

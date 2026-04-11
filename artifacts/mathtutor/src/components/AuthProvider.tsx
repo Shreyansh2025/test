@@ -6,6 +6,7 @@ interface AuthContextType {
   userId: number | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
+  isAuthReady: boolean;
   login: (token: string, user: AuthUser) => void;
   logout: () => void;
   updateUser: (updates: Partial<AuthUser>) => void;
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   userId: null,
   user: null,
   isAuthenticated: false,
+  isAuthReady: true,
   login: () => {},
   logout: () => {},
   updateUser: () => {},

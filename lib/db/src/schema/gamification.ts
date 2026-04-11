@@ -9,6 +9,7 @@ export const badgesTable = pgTable("badges", {
   description: text("description").notNull(),
   icon: text("icon").notNull(),
   rarity: text("rarity").notNull().default("common"),
+  condition: text("condition").notNull().default(""),
   xpRequired: integer("xp_required").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

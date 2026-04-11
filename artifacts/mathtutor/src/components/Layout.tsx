@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, BookOpen, MessageSquare, Swords, Trophy, Users,
   BarChart2, Award, User, Bell, LogOut, Sun, Moon, BrainCircuit, Menu, X,
-  Map, GraduationCap
+  Map, GraduationCap, HelpCircle, School, Shield, Gamepad2
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
         <img
           src="/assets/logo.png"
-          alt="MathMind"
+          alt="AI Tutor"
           className="w-9 h-9 rounded-xl object-cover shadow-sm"
           onError={e => {
             (e.target as HTMLImageElement).style.display = 'none';
@@ -57,8 +57,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <BrainCircuit className="w-5 h-5 text-white" />
         </div>
         <div>
-          <span className="font-bold text-base text-sidebar-foreground">MathMind</span>
-          <p className="text-xs text-muted-foreground">AI Mentor</p>
+          <span className="font-bold text-base text-sidebar-foreground">AI Tutor</span>
+          <p className="text-xs text-muted-foreground">Learning Assistant</p>
         </div>
       </div>
 
@@ -84,9 +84,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(item => {
+        {[...NAV_ITEMS,
+          { path: "/doubts", icon: HelpCircle, labelKey: "Doubts" },
+          { path: "/games", icon: Gamepad2, labelKey: "Games" },
+          ...(user?.role === "teacher" || user?.role === "admin"
+            ? [{ path: "/teacher-dashboard", icon: School, labelKey: "Teacher Dashboard" as const }]
+            : []),
+          ...(user?.role === "admin"
+            ? [{ path: "/admin-dashboard", icon: Shield, labelKey: "Admin Dashboard" as const }]
+            : []),
+        ].map(item => {
           const active = location === item.path || location.startsWith(item.path + "/");
-          const label = t(item.labelKey as any);
+          const knownKeys = new Set([
+            "dashboard","practice","knowledgeMap","courses","aiTutor","battle","leaderboard","friends","progress","badges",
+          ]);
+          const label = knownKeys.has(item.labelKey as string) ? t(item.labelKey as any) : (item.labelKey as string);
           return (
             <Link key={item.path} href={item.path}>
               <button
@@ -182,7 +194,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </button>
           <div className="flex items-center gap-2">
             <BrainCircuit className="w-5 h-5 text-primary" />
-            <span className="font-bold text-foreground">MathMind</span>
+            <span className="font-bold text-foreground">AI Tutor</span>
           </div>
         </header>
 

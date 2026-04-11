@@ -8,14 +8,17 @@ const router = Router();
 
 router.get("/learning-paths/sub-topics", requireAuth, async (req, res) => {
   try {
-    const topicId = req.query.topicId ? parseInt(req.query.topicId as string, 10) : undefined;
+    const q = req.query.topicId;
+    const first = Array.isArray(q) ? q[0] : q;
+    const topicIdRaw = typeof first === "string" ? first : undefined;
+    const topicId = topicIdRaw ? parseInt(topicIdRaw, 10) : undefined;
     const where = topicId ? eq(subTopicsTable.topicId, topicId) : undefined;
     const subTopics = await db.select().from(subTopicsTable)
       .where(where)
       .orderBy(subTopicsTable.topicId, subTopicsTable.order);
-    res.json(subTopics);
+    return res.json(subTopics);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch sub-topics" });
+    return res.status(500).json({ error: "Failed to fetch sub-topics" });
   }
 });
 
@@ -38,20 +41,22 @@ router.get("/learning-paths/overview", requireAuth, async (req, res) => {
         .filter(t => t.subjectId === subject.id)
         .map(topic => {
           const topicStats = statsMap[topic.id];
-          const acc = topicStats ? topicStats.correctCount / Math.max(topicStats.totalCount, 1) : 0;
+          const answered = topicStats?.answered ?? 0;
+          const correct = topicStats?.correct ?? 0;
+          const acc = answered > 0 ? correct / Math.max(answered, 1) : 0;
           return {
             ...topic,
             subTopicCount: subTopicCountMap[topic.id] ?? 0,
-            mastered: acc >= 0.8 && (topicStats?.totalCount ?? 0) >= 3,
-            inProgress: (topicStats?.totalCount ?? 0) > 0 && acc < 0.8,
+            mastered: acc >= 0.8 && answered >= 3,
+            inProgress: answered > 0 && acc < 0.8,
             accuracy: acc,
-            questionsAnswered: topicStats?.totalCount ?? 0,
+            questionsAnswered: answered,
           };
         }),
     }));
-    res.json(result);
+    return res.json(result);
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch learning path overview" });
+    return res.status(500).json({ error: "Failed to fetch learning path overview" });
   }
 });
 
@@ -71,24 +76,25 @@ router.post("/confidence", requireAuth, async (req, res) => {
       sessionCorrect: sessionCorrect ?? 0,
       sessionTotal: sessionTotal ?? 0,
     }).returning();
-    res.json({ success: true, confidenceScore: inserted });
+    return res.json({ success: true, confidenceScore: inserted });
   } catch (err) {
-    res.status(500).json({ error: "Failed to save confidence score" });
+    return res.status(500).json({ error: "Failed to save confidence score" });
   }
 });
 
 router.get("/confidence/:topicId", requireAuth, async (req, res) => {
   try {
     const userId = (req as any).user.id;
-    const topicId = parseInt(req.params.topicId, 10);
+    const topicIdParam = Array.isArray(req.params.topicId) ? req.params.topicId[0] : req.params.topicId;
+    const topicId = parseInt(topicIdParam, 10);
     const scores = await db.select().from(confidenceScoresTable)
       .where(and(eq(confidenceScoresTable.userId, userId), eq(confidenceScoresTable.topicId, topicId)))
       .orderBy(desc(confidenceScoresTable.createdAt))
       .limit(5);
     const avgScore = scores.length > 0 ? scores.reduce((acc, s) => acc + s.score, 0) / scores.length : null;
-    res.json({ scores, avgScore });
+    return res.json({ scores, avgScore });
   } catch (err) {
-    res.status(500).json({ error: "Failed to fetch confidence scores" });
+    return res.status(500).json({ error: "Failed to fetch confidence scores" });
   }
 });
 

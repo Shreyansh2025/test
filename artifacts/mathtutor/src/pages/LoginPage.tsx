@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { BrainCircuit, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,14 +11,32 @@ import { Redirect } from "wouter";
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
-  const { login, isAuthenticated } = useAuthContext();
+  const { login, logout, isAuthenticated, user, isAuthReady } = useAuthContext();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  if (isAuthenticated) return <Redirect to="/dashboard" />;
+  const routeByRole = (role?: "student" | "teacher" | "admin") =>
+    role === "admin" ? "/admin-dashboard" : role === "teacher" ? "/teacher-dashboard" : "/dashboard";
+
+  useEffect(() => {
+    if (isAuthenticated && isAuthReady && !user) {
+      logout();
+    }
+  }, [isAuthenticated, isAuthReady, user, logout]);
+
+  if (isAuthenticated && !isAuthReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">
+        Restoring session…
+      </div>
+    );
+  }
+  if (isAuthenticated && isAuthReady && user) {
+    return <Redirect to={routeByRole(user.role)} />;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,7 +51,7 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Login failed");
       login(data.token, data.user);
-      navigate("/dashboard");
+      navigate(routeByRole(data.user?.role));
     } catch (err: any) {
       toast({ title: err.message, variant: "destructive" });
     } finally {
@@ -50,7 +68,7 @@ export default function LoginPage() {
               <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
                 <BrainCircuit className="w-5 h-5 text-white" />
               </div>
-              <span className="font-bold text-xl text-foreground">MathMind</span>
+              <span className="font-bold text-xl text-foreground">AI Tutor</span>
             </div>
           </Link>
         </div>

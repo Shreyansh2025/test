@@ -41,8 +41,8 @@ function TopicList({ subjectId }: { subjectId: number }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
       {(topics as any[]).map((topic: any) => (
-        <Link key={topic.id} href={`/practice/${topic.id}`}>
-          <div className="group flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-all duration-150 cursor-pointer">
+        <div key={topic.id} className="group p-3 rounded-lg border border-border bg-card hover:border-primary/50 hover:bg-primary/5 transition-all duration-150">
+          <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground group-hover:text-primary truncate">{topic.name}</p>
               {topic.description && (
@@ -51,7 +51,15 @@ function TopicList({ subjectId }: { subjectId: number }) {
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary flex-shrink-0" />
           </div>
-        </Link>
+          <div className="mt-2 flex gap-2">
+            <Link href={`/practice/${topic.id}`}>
+              <Button size="sm" variant="outline">Standard</Button>
+            </Link>
+            <Link href={`/practice/${topic.id}?mode=ai`}>
+              <Button size="sm">AI Quiz</Button>
+            </Link>
+          </div>
+        </div>
       ))}
     </div>
   );

@@ -1,97 +1,19 @@
-import { useState } from "react";
-import { ExternalLink, Star, Clock, BookOpen, Zap, CheckCircle2, Globe, Filter, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ExternalLink, Star, Clock, BookOpen, Zap, CheckCircle2, Globe, Filter, Search, GitCompareArrows } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
-
-const SUBJECTS = ["All", "Mathematics", "Physics", "Chemistry", "Programming"];
-const GRADES = ["All Grades", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "JEE", "NEET", "College"];
-
-const COURSES = [
-  {
-    id: 1, subject: "Mathematics", title: "Complete Mathematics — JEE Main & Advanced",
-    provider: "Khan Academy", providerColor: "bg-green-500", isFree: true, price: 0, currency: "INR",
-    durationHours: 80, rating: 4.8, reviewCount: 12400, level: "Intermediate",
-    syllabusTopics: ["Algebra", "Calculus", "Trigonometry", "Coordinate Geometry"],
-    language: "English / Hindi", grade: "JEE",
-    syllabusMatch: 92, isAiRecommended: true,
-    description: "Comprehensive JEE Math preparation with 1000+ practice problems and video lectures.",
-    url: "https://www.khanacademy.org",
-  },
-  {
-    id: 2, subject: "Mathematics", title: "Algebra & Calculus Masterclass",
-    provider: "Coursera", providerColor: "bg-blue-500", isFree: false, price: 2999, currency: "INR",
-    durationHours: 45, rating: 4.6, reviewCount: 8900, level: "Beginner",
-    syllabusTopics: ["Algebra Basics", "Quadratic Equations", "Calculus Basics", "Linear Algebra"],
-    language: "English", grade: "Grade 11",
-    syllabusMatch: 85, isAiRecommended: false,
-    description: "Learn algebra and calculus from scratch with hands-on exercises and quizzes.",
-    url: "https://www.coursera.org",
-  },
-  {
-    id: 3, subject: "Mathematics", title: "गणित — CBSE Class 11 & 12",
-    provider: "Vedantu", providerColor: "bg-purple-500", isFree: false, price: 1499, currency: "INR",
-    durationHours: 60, rating: 4.7, reviewCount: 6200, level: "Intermediate",
-    syllabusTopics: ["Calculus", "Statistics", "Trigonometry", "Vectors"],
-    language: "Hindi", grade: "Grade 12",
-    syllabusMatch: 88, isAiRecommended: true,
-    description: "CBSE-aligned math course in Hindi with live doubt sessions and mock tests.",
-    url: "https://www.vedantu.com",
-  },
-  {
-    id: 4, subject: "Physics", title: "Physics for JEE — Mechanics to Modern Physics",
-    provider: "Unacademy", providerColor: "bg-orange-500", isFree: false, price: 3499, currency: "INR",
-    durationHours: 90, rating: 4.9, reviewCount: 15600, level: "Advanced",
-    syllabusTopics: ["Newton's Laws", "Kinematics", "Energy", "Electromagnetism", "Optics"],
-    language: "English / Hindi", grade: "JEE",
-    syllabusMatch: 95, isAiRecommended: true,
-    description: "India's top physics educators teach every JEE topic with daily practice tests.",
-    url: "https://www.unacademy.com",
-  },
-  {
-    id: 5, subject: "Physics", title: "Introductory Physics — AP/College Level",
-    provider: "edX", providerColor: "bg-red-600", isFree: true, price: 0, currency: "INR",
-    durationHours: 40, rating: 4.5, reviewCount: 4300, level: "Beginner",
-    syllabusTopics: ["Mechanics", "Waves", "Thermodynamics"],
-    language: "English", grade: "Grade 12",
-    syllabusMatch: 70, isAiRecommended: false,
-    description: "MIT-backed introductory physics covering classical mechanics and waves.",
-    url: "https://www.edx.org",
-  },
-  {
-    id: 6, subject: "Chemistry", title: "Organic Chemistry — JEE & NEET",
-    provider: "PW (Physics Wallah)", providerColor: "bg-yellow-500", isFree: true, price: 0, currency: "INR",
-    durationHours: 55, rating: 4.8, reviewCount: 22000, level: "Intermediate",
-    syllabusTopics: ["Atomic Structure", "Chemical Bonding", "Organic Chemistry", "Equilibrium"],
-    language: "Hindi", grade: "NEET",
-    syllabusMatch: 90, isAiRecommended: true,
-    description: "Alakh Pandey's famous organic chemistry course — free for all students.",
-    url: "https://www.physicswallah.live",
-  },
-  {
-    id: 7, subject: "Programming", title: "Data Structures & Algorithms — Complete Course",
-    provider: "Coding Ninjas", providerColor: "bg-indigo-500", isFree: false, price: 4999, currency: "INR",
-    durationHours: 120, rating: 4.7, reviewCount: 18900, level: "Intermediate",
-    syllabusTopics: ["Arrays & Strings", "Sorting Algorithms", "Dynamic Programming", "Graph Algorithms"],
-    language: "English / Hindi", grade: "College",
-    syllabusMatch: 98, isAiRecommended: true,
-    description: "Most comprehensive DSA course for competitive programming and placements.",
-    url: "https://www.codingninjas.com",
-  },
-  {
-    id: 8, subject: "Programming", title: "Python for Beginners — Free Course",
-    provider: "Khan Academy", providerColor: "bg-green-500", isFree: true, price: 0, currency: "INR",
-    durationHours: 20, rating: 4.6, reviewCount: 9800, level: "Beginner",
-    syllabusTopics: ["Recursion", "Arrays & Strings", "Time Complexity"],
-    language: "English", grade: "Grade 9",
-    syllabusMatch: 65, isAiRecommended: false,
-    description: "Start your programming journey with Python — fun, interactive exercises.",
-    url: "https://www.khanacademy.org",
-  },
-];
+import {
+  COURSES,
+  GRADES,
+  SUBJECTS,
+  groupComparableBatches,
+  bestValueIndex,
+  type CourseListing,
+} from "@/data/coursesCatalog";
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -104,7 +26,7 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-function CourseCard({ course }: { course: typeof COURSES[number] }) {
+function CourseCard({ course }: { course: CourseListing }) {
   const { t } = useLanguage();
 
   return (
@@ -122,6 +44,11 @@ function CourseCard({ course }: { course: typeof COURSES[number] }) {
               )}
             </div>
             <h3 className="text-sm font-bold text-foreground line-clamp-2 leading-tight">{course.title}</h3>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              <span className="font-medium text-foreground/80">{t("batch")}:</span> {course.batchName}
+              <span className="mx-1.5 text-border">·</span>
+              {course.batchFormat}
+            </p>
           </div>
           <div className="text-right flex-shrink-0">
             {course.isFree ? (
@@ -196,6 +123,7 @@ export default function CoursesPage() {
   const [selectedGrade, setSelectedGrade] = useState("All Grades");
   const [search, setSearch] = useState("");
   const [freeOnly, setFreeOnly] = useState(false);
+  const [compareGroupId, setCompareGroupId] = useState<string | null>(null);
 
   const filtered = COURSES.filter(c => {
     if (selectedSubject !== "All" && c.subject !== selectedSubject) return false;
@@ -204,6 +132,20 @@ export default function CoursesPage() {
     if (search && !c.title.toLowerCase().includes(search.toLowerCase()) && !c.provider.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  const compareGroups = useMemo(() => {
+    const raw = groupComparableBatches(COURSES, selectedGrade);
+    if (selectedSubject === "All") return raw;
+    return raw.filter(g => g.subject === selectedSubject);
+  }, [selectedGrade, selectedSubject]);
+
+  const activeCompare = useMemo(() => {
+    if (compareGroups.length === 0) return null;
+    const pick = compareGroupId && compareGroups.some(g => g.groupId === compareGroupId)
+      ? compareGroupId
+      : compareGroups[0].groupId;
+    return compareGroups.find(g => g.groupId === pick) ?? null;
+  }, [compareGroups, compareGroupId]);
 
   const recommended = filtered.filter(c => c.isAiRecommended);
   const others = filtered.filter(c => !c.isAiRecommended);
@@ -265,6 +207,87 @@ export default function CoursesPage() {
           </div>
         </CardContent>
       </Card>
+
+      {compareGroups.length > 0 && activeCompare && (
+        <Card className="border-primary/20 bg-primary/[0.03]">
+          <CardHeader className="pb-2">
+            <div className="flex items-start gap-2">
+              <GitCompareArrows className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-base">{t("batchComparison")}</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">{t("compareBatchesHint")}</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <label className="text-xs font-medium text-muted-foreground shrink-0">{t("courseComparison")}</label>
+              <select
+                value={activeCompare.groupId}
+                onChange={e => setCompareGroupId(e.target.value)}
+                className="flex-1 text-sm rounded-md border border-border bg-background px-3 py-2"
+              >
+                {compareGroups.map(g => (
+                  <option key={g.groupId} value={g.groupId}>
+                    {g.grade} · {g.subject} — {g.label.slice(0, 48)}{g.label.length > 48 ? "…" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full text-xs min-w-[640px]">
+                <thead>
+                  <tr className="bg-muted/60 text-left border-b border-border">
+                    <th className="p-2 font-semibold">{t("batch")}</th>
+                    <th className="p-2 font-semibold">{t("formatLabel")}</th>
+                    <th className="p-2 font-semibold">{t("price")}</th>
+                    <th className="p-2 font-semibold">{t("duration")}</th>
+                    <th className="p-2 font-semibold">{t("rating")}</th>
+                    <th className="p-2 font-semibold">{t("syllabusMatch")}</th>
+                    <th className="p-2 font-semibold w-28" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeCompare.rows.map((row, i) => {
+                    const best = bestValueIndex(activeCompare.rows) === i;
+                    return (
+                      <tr key={row.id} className={cn("border-b border-border/80", best && "bg-emerald-500/10")}>
+                        <td className="p-2">
+                          <div className="font-medium text-foreground">{row.batchName}</div>
+                          <div className="text-[10px] text-muted-foreground">{row.provider}</div>
+                          {best && (
+                            <Badge className="mt-1 text-[9px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30">
+                              {t("bestValue")}
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="p-2 text-muted-foreground">{row.batchFormat}</td>
+                        <td className="p-2 font-semibold">
+                          {row.isFree ? <span className="text-emerald-600">{t("freeCourse")}</span> : `₹${row.price.toLocaleString("en-IN")}`}
+                        </td>
+                        <td className="p-2">{row.durationHours}h</td>
+                        <td className="p-2">{row.rating.toFixed(1)}</td>
+                        <td className="p-2">{row.syllabusMatch}%</td>
+                        <td className="p-2">
+                          <a href={row.url} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="outline" className="h-7 text-[10px] px-2">
+                              {t("enrollNow")}
+                            </Button>
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              “{t("bestValue")}” blends price, hours, rating, and syllabus match — use it as a starting point; pick live vs recorded based on how you learn best.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {recommended.length > 0 && (
         <div>

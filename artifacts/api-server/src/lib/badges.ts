@@ -16,13 +16,21 @@ export async function checkAndAwardBadges(userId: number): Promise<void> {
     const xp = user.xp;
     const level = user.level;
 
-    const battleWins = await db.select({ count: sql<number>`count(*)` })
+    const battleWins = await db
+      .select({ count: sql<number>`count(*)` })
       .from(battleParticipantsTable)
       .innerJoin(battlesTable, eq(battleParticipantsTable.battleId, battlesTable.id))
-      .where(and(
-        eq(battleParticipantsTable.userId, userId),
-        eq(battlesTable.status, "finished")
-      ));
+      .where(
+        and(
+          eq(battleParticipantsTable.userId, userId),
+          eq(battlesTable.status, "finished"),
+          sql`${battleParticipantsTable.score} = (
+            select max(bp2.score)
+            from battle_participants bp2
+            where bp2.battle_id = ${battleParticipantsTable.battleId}
+          )`,
+        ),
+      );
     const wins = Number(battleWins[0]?.count ?? 0);
 
     // Check consecutive correct answers (last 10 answers all correct)
@@ -31,7 +39,9 @@ export async function checkAndAwardBadges(userId: number): Promise<void> {
       .where(eq(userAnswersTable.userId, userId))
       .orderBy(desc(userAnswersTable.createdAt))
       .limit(10);
-    const consecutiveCorrect = recentAnswers.length >= 10 && recentAnswers.every(a => a.isCorrect === 1);
+    const consecutiveCorrect =
+      recentAnswers.length >= 10 &&
+      recentAnswers.every(a => Number(a.isCorrect) === 1);
 
     const toAward: typeof allBadges = [];
 
@@ -55,10 +65,8 @@ export async function checkAndAwardBadges(userId: number): Promise<void> {
       if (shouldAward) toAward.push(badge);
     }
 
-    if (toAward.length > 0) {
-      await db.insert(userBadgesTable).values(
-        toAward.map(b => ({ userId, badgeId: b.id }))
-      ).onConflictDoNothing();
+    for (const b of toAward) {
+      await db.insert(userBadgesTable).values({ userId, badgeId: b.id });
     }
   } catch {
   }
@@ -72,7 +80,7 @@ export async function checkSpeedBadge(userId: number, timeTaken: number): Promis
     const [already] = await db.select().from(userBadgesTable)
       .where(and(eq(userBadgesTable.userId, userId), eq(userBadgesTable.badgeId, badge.id))).limit(1);
     if (already) return;
-    await db.insert(userBadgesTable).values({ userId, badgeId: badge.id }).onConflictDoNothing();
+    await db.insert(userBadgesTable).values({ userId, badgeId: badge.id });
   } catch {
   }
 }

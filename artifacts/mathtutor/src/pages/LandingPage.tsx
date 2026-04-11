@@ -51,7 +51,7 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/90 backdrop-blur-lg">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/assets/logo.png" alt="MathMind Logo" className="w-8 h-8 rounded-lg object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            <img src="/assets/logo.png" alt="AI Tutor Logo" className="w-8 h-8 rounded-lg object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
             <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center" style={{ display: 'none' }}>
               <BrainCircuit className="w-4.5 h-4.5 text-white" />
             </div>
@@ -135,7 +135,7 @@ export default function LandingPage() {
                 <div className="relative rounded-2xl overflow-hidden border border-border shadow-2xl bg-card">
                   <img
                     src={HERO_GIFS[heroIdx]}
-                    alt="MathMind AI Learning"
+                    alt="AI Tutor Learning"
                     className="w-full object-cover transition-opacity duration-500"
                     style={{ maxHeight: 380 }}
                     onError={e => { (e.target as HTMLImageElement).src = "/assets/hero.gif"; }}
@@ -341,10 +341,10 @@ export default function LandingPage() {
 
       <footer className="text-center py-8 text-xs text-muted-foreground border-t border-border">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <img src="/assets/logo.png" alt="MathMind" className="w-5 h-5 rounded object-cover" onError={() => {}} />
-          <span className="font-semibold">MathMind AI Mentor</span>
+          <img src="/assets/logo.png" alt="AI Tutor" className="w-5 h-5 rounded object-cover" onError={() => {}} />
+          <span className="font-semibold">AI Tutor</span>
         </div>
-        © 2026 AI Mentor. Built with ❤️ for learners across India and the world.
+        © 2026 AI Tutor. Built with ❤️ for learners across India and the world.
         <div className="mt-2 flex justify-center gap-4">
           <Link href="/login"><span className="hover:text-foreground cursor-pointer transition-colors">Sign In</span></Link>
           <Link href="/register"><span className="hover:text-foreground cursor-pointer transition-colors">Get Started</span></Link>

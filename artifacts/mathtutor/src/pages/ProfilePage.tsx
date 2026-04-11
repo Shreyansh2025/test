@@ -9,12 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuthContext } from "@/components/AuthProvider";
 import { setStoredLanguage } from "@/hooks/useAuth";
+import { LANGUAGES, type Language } from "@/lib/i18n";
 
 export default function ProfilePage() {
   const { user, token, updateUser } = useAuthContext();
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ displayName: user?.displayName ?? "", language: user?.language ?? "en" });
+  const [form, setForm] = useState<{ displayName: string; language: Language }>({
+    displayName: user?.displayName ?? "",
+    language: user?.language ?? "en",
+  });
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -27,8 +31,8 @@ export default function ProfilePage() {
         body: JSON.stringify({ displayName: form.displayName, language: form.language }),
       });
       if (!res.ok) throw new Error("Failed to update");
-      updateUser({ displayName: form.displayName, language: form.language as "en" | "hi" });
-      setStoredLanguage(form.language as "en" | "hi");
+      updateUser({ displayName: form.displayName, language: form.language });
+      setStoredLanguage(form.language);
       setEditing(false);
       toast({ title: "Profile updated!" });
     } catch {
@@ -62,7 +66,7 @@ export default function ProfilePage() {
               <div className="flex flex-wrap gap-2 mt-3 justify-center sm:justify-start">
                 <Badge className="bg-primary/10 text-primary border-primary/20">Level {user?.level}</Badge>
                 <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">🔥 {user?.streak} day streak</Badge>
-                <Badge variant="outline" className="text-xs">{user?.language === "hi" ? "🇮🇳 Hindi" : "🇺🇸 English"}</Badge>
+                <Badge variant="outline" className="text-xs">{user?.role ?? "student"}</Badge>
               </div>
             </div>
             <Button variant="outline" size="sm" onClick={() => setEditing(!editing)} className="flex-shrink-0">
@@ -79,11 +83,19 @@ export default function ProfilePage() {
               </div>
               <div className="space-y-1.5">
                 <Label>Preferred Language</Label>
-                <Select value={form.language} onValueChange={v => setForm(f => ({ ...f, language: v }))}>
+                <Select
+                  value={form.language}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, language: v as Language }))
+                  }
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="en">🇺🇸 English</SelectItem>
-                    <SelectItem value="hi">🇮🇳 Hindi</SelectItem>
+                    {LANGUAGES.map((l) => (
+                      <SelectItem key={l.code} value={l.code}>
+                        {l.flag} {l.nativeName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

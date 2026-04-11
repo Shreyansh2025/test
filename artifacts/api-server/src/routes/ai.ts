@@ -1,5 +1,4 @@
 import { Router, type IRouter } from "express";
-import { openai } from "@workspace/integrations-openai-ai-server";
 import { extractToken, verifyToken } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -28,13 +27,28 @@ Standard Explanation: ${explanation ?? ""}
 
 Respond with a focused, empathetic explanation of WHY the student's specific choice was wrong — not just what the correct answer is. Help them understand the underlying concept they confused. Be concise and encouraging.`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-5.2",
-      max_completion_tokens: 300,
-      messages: [{ role: "user", content: prompt }],
-    });
+    // Try live AI first (if integration env is configured).
+    try {
+      const { openai } = await import("@workspace/integrations-openai-ai-server");
+      const completion = await openai.chat.completions.create({
+        model: "gpt-5.2",
+        max_completion_tokens: 300,
+        messages: [{ role: "user", content: prompt }],
+      });
+      const misconception =
+        completion.choices[0]?.message?.content ??
+        "Could not generate explanation.";
+      res.json({ misconception });
+      return;
+    } catch {
+      // fallback below
+    }
 
-    const misconception = completion.choices[0]?.message?.content ?? "Could not generate explanation.";
+    // Deterministic fallback so the Explain Why button always works.
+    const misconception =
+      `You selected "${userAnswer}", but the correct answer is "${correctAnswer}". ` +
+      `The confusion is likely between the core concept and a look-alike option. ` +
+      `Re-check the key rule used in this question, then compare each option step-by-step before choosing.`;
     res.json({ misconception });
   } catch (err: any) {
     res.status(500).json({ error: "AI service error", message: err.message });

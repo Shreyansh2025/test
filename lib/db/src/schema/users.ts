@@ -10,6 +10,7 @@ export const usersTable = pgTable("users", {
   displayName: text("display_name").notNull(),
   avatarUrl: text("avatar_url"),
   language: text("language").notNull().default("en"),
+  role: text("role").notNull().default("student"),
   xp: integer("xp").notNull().default(0),
   level: integer("level").notNull().default(1),
   streak: integer("streak").notNull().default(0),

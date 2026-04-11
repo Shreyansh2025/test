@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
 import { eq, asc } from "drizzle-orm";
 import { db, conversations, messages } from "@workspace/db";
-import { openai } from "@workspace/integrations-openai-ai-server";
 import { CreateOpenaiConversationBody, SendOpenaiMessageBody, GetOpenaiConversationParams, DeleteOpenaiConversationParams, ListOpenaiMessagesParams } from "@workspace/api-zod";
 import { extractToken, verifyToken } from "../lib/auth";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -82,6 +82,235 @@ function getLangName(code: string): string {
   return names[code] ?? "the student's language";
 }
 
+/** Ollama base URLs to try (env first, then common local defaults). Empty env is ignored. */
+function ollamaBaseCandidates(): string[] {
+  const fromEnv = process.env.OLLAMA_BASE_URL?.trim();
+  const defaults = ["http://127.0.0.1:11434", "http://localhost:11434"];
+  const raw = [fromEnv && fromEnv.length > 0 ? fromEnv : null, ...defaults].filter(Boolean) as string[];
+  return [...new Set(raw.map((b) => b.replace(/\/+$/, "")))];
+}
+
+function ollamaMathModel(): string {
+  const raw = process.env.OLLAMA_MATH_MODEL;
+  return String((raw && raw.trim()) || "math-tutor:latest");
+}
+
+function ollamaTimeoutMs(): number {
+  const n = Number(process.env.OLLAMA_TIMEOUT_MS);
+  if (Number.isFinite(n) && n > 0) return Math.min(n, 600_000);
+  return 180_000;
+}
+
+/** When false, do not prepend the app’s MathMind system prompt so your Ollama Modelfile SYSTEM/rules apply. */
+function ollamaUseAppSystemPrompt(): boolean {
+  const v = process.env.OLLAMA_MATH_USE_APP_SYSTEM_PROMPT?.trim();
+  if (v === undefined || v === "") return true;
+  return !/^(0|false|no|off)$/i.test(v);
+}
+
+function formatConvoForOllamaPrompt(
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+): string {
+  return messages
+    .map((m) => (m.role === "user" ? `User: ${m.content}` : `Assistant: ${m.content}`))
+    .join("\n\n");
+}
+
+async function tryOllamaGenerate(
+  base: string,
+  model: string,
+  prompt: string,
+  signal: AbortSignal,
+): Promise<string | null> {
+  const response = await fetch(`${base}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      prompt,
+      stream: false,
+      options: { temperature: 0.2 },
+    }),
+    signal,
+  });
+  if (!response.ok) {
+    const errText = await response.text().catch(() => "");
+    throw new Error(`Ollama /api/generate ${response.status}: ${errText.slice(0, 200)}`);
+  }
+  const data = (await response.json()) as { response?: string };
+  const text = data.response?.trim();
+  return text && text.length > 0 ? text : null;
+}
+
+async function tryOllamaChat(
+  base: string,
+  model: string,
+  prompt: string,
+  signal: AbortSignal,
+): Promise<string | null> {
+  return tryOllamaChatMessages(base, model, [{ role: "user", content: prompt }], signal);
+}
+
+async function tryOllamaChatMessages(
+  base: string,
+  model: string,
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+  signal: AbortSignal,
+): Promise<string | null> {
+  const response = await fetch(`${base}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      messages,
+      stream: false,
+      options: { temperature: 0.2 },
+    }),
+    signal,
+  });
+  if (!response.ok) {
+    const errText = await response.text().catch(() => "");
+    throw new Error(`Ollama /api/chat ${response.status}: ${errText.slice(0, 200)}`);
+  }
+  const data = (await response.json()) as { message?: { content?: string } };
+  const text = data.message?.content?.trim();
+  return text && text.length > 0 ? text : null;
+}
+
+async function runMathBot(prompt: string): Promise<string> {
+  const model = ollamaMathModel();
+  const bases = ollamaBaseCandidates();
+  const timeoutMs = ollamaTimeoutMs();
+  let lastErr: Error | null = null;
+
+  for (const base of bases) {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    const signal = controller.signal;
+    try {
+      try {
+        const fromGen = await tryOllamaGenerate(base, model, prompt, signal);
+        if (fromGen) return fromGen;
+      } catch (e) {
+        lastErr = e instanceof Error ? e : new Error(String(e));
+      }
+      try {
+        const fromChat = await tryOllamaChat(base, model, prompt, signal);
+        if (fromChat) return fromChat;
+      } catch (e) {
+        lastErr = e instanceof Error ? e : new Error(String(e));
+      }
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  throw lastErr ?? new Error("Ollama did not return any text for the math bot.");
+}
+
+/** Ollama with Modelfile only: real user/assistant turns (no app SYSTEM), so the model’s template + SYSTEM apply. */
+async function runMathBotFromConversation(
+  convo: Array<{ role: "user" | "assistant"; content: string }>,
+): Promise<string> {
+  const model = ollamaMathModel();
+  const bases = ollamaBaseCandidates();
+  const timeoutMs = ollamaTimeoutMs();
+  const fallbackPrompt = formatConvoForOllamaPrompt(convo);
+  let lastErr: Error | null = null;
+
+  for (const base of bases) {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    const signal = controller.signal;
+    try {
+      try {
+        const fromChat = await tryOllamaChatMessages(base, model, convo, signal);
+        if (fromChat) return fromChat;
+      } catch (e) {
+        lastErr = e instanceof Error ? e : new Error(String(e));
+      }
+      try {
+        const fromGen = await tryOllamaGenerate(base, model, fallbackPrompt, signal);
+        if (fromGen) return fromGen;
+      } catch (e) {
+        lastErr = e instanceof Error ? e : new Error(String(e));
+      }
+      try {
+        const fromChatSingle = await tryOllamaChat(base, model, fallbackPrompt, signal);
+        if (fromChatSingle) return fromChatSingle;
+      } catch (e) {
+        lastErr = e instanceof Error ? e : new Error(String(e));
+      }
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  throw lastErr ?? new Error("Ollama did not return any text for the math bot.");
+}
+
+async function streamGroqChat(
+  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
+  onChunk: (content: string) => void,
+): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw Object.assign(new Error("Missing GROQ_API_KEY"), { status: 500 });
+  }
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile",
+      messages,
+      temperature: 0.3,
+      max_tokens: 1200,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok || !response.body) {
+    throw Object.assign(new Error(`Groq error ${response.status}`), { status: response.status });
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let full = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      try {
+        const parsed = JSON.parse(payload) as {
+          choices?: Array<{ delta?: { content?: string } }>;
+        };
+        const piece = parsed.choices?.[0]?.delta?.content;
+        if (!piece) continue;
+        full += piece;
+        onChunk(piece);
+      } catch {
+        // Ignore malformed SSE chunks
+      }
+    }
+  }
+
+  return full;
+}
+
 router.get("/openai/conversations", async (_req, res): Promise<void> => {
   const convs = await db.select().from(conversations).orderBy(conversations.createdAt);
   res.json(convs);
@@ -141,6 +370,7 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
 
   const parsed = SendOpenaiMessageBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const provider = req.body?.provider === "math-bot" ? "math-bot" : "ai-tutor";
 
   const [conv] = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1);
   if (!conv) { res.status(404).json({ error: "Conversation not found" }); return; }
@@ -172,19 +402,44 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
   res.setHeader("Connection", "keep-alive");
 
   let fullResponse = "";
-
-  const stream = await openai.chat.completions.create({
-    model: "gpt-5.2",
-    max_completion_tokens: 8192,
-    messages: chatMessages,
-    stream: true,
-  });
-
-  for await (const chunk of stream) {
-    const content = chunk.choices[0]?.delta?.content;
-    if (content) {
-      fullResponse += content;
-      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+  if (provider === "math-bot") {
+    try {
+      const useAppSystem = ollamaUseAppSystemPrompt();
+      const convoOnly = chatMessages.filter(
+        (m): m is { role: "user" | "assistant"; content: string } =>
+          m.role === "user" || m.role === "assistant",
+      );
+      if (useAppSystem) {
+        const latestUser =
+          chatMessages.filter((m) => m.role === "user").at(-1)?.content ?? "";
+        fullResponse = await runMathBot(
+          `${systemPrompt}\n\nStudent question:\n${latestUser}`,
+        );
+      } else {
+        fullResponse = await runMathBotFromConversation(convoOnly);
+      }
+      res.write(`data: ${JSON.stringify({ content: fullResponse })}\n\n`);
+    } catch (err) {
+      logger.warn({ err }, "Math bot (Ollama) failed");
+      fullResponse =
+        "Math AI Bot is unavailable. Start Ollama, pull your model, then set OLLAMA_BASE_URL (e.g. http://127.0.0.1:11434) and OLLAMA_MATH_MODEL (default: math-tutor:latest) on the API server. If the API runs in Docker, use http://host.docker.internal:11434 instead of 127.0.0.1.";
+      res.write(`data: ${JSON.stringify({ content: fullResponse })}\n\n`);
+    }
+  } else {
+    try {
+      fullResponse = await streamGroqChat(chatMessages, (content) => {
+        res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      });
+    } catch (err: any) {
+      const status = Number(err?.status ?? err?.statusCode ?? 500);
+      if (status === 429) {
+        fullResponse =
+          "I am getting rate-limited right now. Please wait a few seconds and send your message again.";
+      } else {
+        fullResponse =
+          "AI tutor is temporarily unavailable. Please try again shortly.";
+      }
+      res.write(`data: ${JSON.stringify({ content: fullResponse })}\n\n`);
     }
   }
 
@@ -196,36 +451,6 @@ router.post("/openai/conversations/:id/messages", async (req, res): Promise<void
 
   res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
   res.end();
-});
-
-router.post("/ai/misconception", async (req, res): Promise<void> => {
-  const { question, correctAnswer, userAnswer, explanation, language } = req.body;
-  if (!question || !correctAnswer) {
-    res.status(400).json({ error: "question and correctAnswer are required" });
-    return;
-  }
-  const lang = language ?? "en";
-  const langName = getLangName(lang);
-  try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are MathMind, an AI math tutor. When a student gets a question wrong, identify the specific misconception or reasoning error in 2-4 clear sentences. Be educational, specific, and encouraging. ${lang !== "en" ? `Respond primarily in ${langName}, but keep technical terms in English.` : ""}`,
-        },
-        {
-          role: "user",
-          content: `Question: ${question}\nCorrect Answer: ${correctAnswer}\nStudent's Answer: ${userAnswer ?? "no answer (timeout)"}\nExplanation given: ${explanation ?? "none"}\n\nWhat is the likely misconception? Give a targeted, encouraging explanation.`,
-        },
-      ],
-      max_tokens: 250,
-    });
-    const misconception = completion.choices[0]?.message?.content ?? "Could not determine the misconception. Please review the correct answer and explanation.";
-    res.json({ misconception });
-  } catch (err: any) {
-    res.status(500).json({ message: "AI service unavailable", error: err?.message });
-  }
 });
 
 export default router;

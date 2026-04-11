@@ -63,7 +63,7 @@ router.get("/battles", async (_req, res): Promise<void> => {
     .limit(20);
 
   const withCounts = await Promise.all(battles.map(async b => {
-    const participants = await db.select({ count: battlesTable.id }).from(battleParticipantsTable)
+    const participants = await db.select({ count: battleParticipantsTable.id }).from(battleParticipantsTable)
       .where(eq(battleParticipantsTable.battleId, b.battle.id));
     return {
       id: b.battle.id,
@@ -94,12 +94,20 @@ router.post("/battles", async (req, res): Promise<void> => {
   const qCount = parsed.data.questionCount ?? 10;
   const topicIds = await db.select({ id: topicsTable.id }).from(topicsTable)
     .where(eq(topicsTable.subjectId, parsed.data.subjectId));
-  const questions = topicIds.length > 0
+  let questions = topicIds.length > 0
     ? await db.select({ id: questionsTable.id }).from(questionsTable)
         .where(inArray(questionsTable.topicId, topicIds.map(t => t.id)))
         .orderBy(sql`RANDOM()`)
         .limit(qCount)
     : await db.select({ id: questionsTable.id }).from(questionsTable).limit(qCount);
+  // If the chosen subject has no seeded questions yet, fallback to global question pool.
+  if (questions.length === 0) {
+    questions = await db
+      .select({ id: questionsTable.id })
+      .from(questionsTable)
+      .orderBy(sql`RANDOM()`)
+      .limit(qCount);
+  }
   const questionIds = questions.map(q => q.id);
 
   const code = randomCode();
@@ -168,6 +176,14 @@ router.get("/battles/:id", async (req, res): Promise<void> => {
         .where(inArray(questionsTable.id, battle.battle.questionIds))
     : [];
 
+  const orderedQuestions =
+    battle.battle.questionIds.length > 0
+      ? [...questions].sort(
+          (a, b) =>
+            battle.battle.questionIds.indexOf(a.id) - battle.battle.questionIds.indexOf(b.id),
+        )
+      : questions;
+
   res.json({
     id: battle.battle.id,
     code: battle.battle.code,
@@ -179,6 +195,7 @@ router.get("/battles/:id", async (req, res): Promise<void> => {
     maxParticipants: battle.battle.maxParticipants,
     questionCount: battle.battle.questionCount,
     timePerQuestion: battle.battle.timePerQuestion,
+    questionIds: battle.battle.questionIds,
     participants: participants.map(p => ({
       userId: p.bp.userId,
       displayName: p.user?.displayName ?? "Unknown",
@@ -187,7 +204,7 @@ router.get("/battles/:id", async (req, res): Promise<void> => {
       correctAnswers: p.bp.correctAnswers,
       isReady: p.bp.isReady,
     })),
-    questions: questions.map(q => ({
+    questions: orderedQuestions.map(q => ({
       id: q.id,
       topicId: q.topicId,
       text: q.text,
@@ -250,6 +267,13 @@ router.post("/battles/:id/join", async (req, res): Promise<void> => {
     ? await db.select().from(questionsTable).where(inArray(questionsTable.id, battle.questionIds))
     : [];
 
+  const orderedJoinQuestions =
+    battle.questionIds.length > 0
+      ? [...questions].sort(
+          (a, b) => battle.questionIds.indexOf(a.id) - battle.questionIds.indexOf(b.id),
+        )
+      : questions;
+
   res.json({
     id: fullBattle.battle.id,
     code: fullBattle.battle.code,
@@ -261,6 +285,7 @@ router.post("/battles/:id/join", async (req, res): Promise<void> => {
     maxParticipants: fullBattle.battle.maxParticipants,
     questionCount: fullBattle.battle.questionCount,
     timePerQuestion: fullBattle.battle.timePerQuestion,
+    questionIds: battle.questionIds,
     participants: participants.map(p => ({
       userId: p.bp.userId,
       displayName: p.user?.displayName ?? "Unknown",
@@ -269,7 +294,7 @@ router.post("/battles/:id/join", async (req, res): Promise<void> => {
       correctAnswers: p.bp.correctAnswers,
       isReady: p.bp.isReady,
     })),
-    questions: questions.map(q => ({
+    questions: orderedJoinQuestions.map(q => ({
       id: q.id,
       topicId: q.topicId,
       text: q.text,
@@ -291,7 +316,12 @@ router.post("/battles/:id/submit", async (req, res): Promise<void> => {
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const parsed = SubmitBattleAnswerBody.safeParse(req.body);
+  const coerced = {
+    questionId: Number((req.body as { questionId?: unknown })?.questionId),
+    answer: String((req.body as { answer?: unknown })?.answer ?? ""),
+    timeTaken: Number((req.body as { timeTaken?: unknown })?.timeTaken ?? 0),
+  };
+  const parsed = SubmitBattleAnswerBody.safeParse(coerced);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
   const [question] = await db.select().from(questionsTable)
@@ -348,8 +378,10 @@ router.post("/battles/:id/finish", async (req, res): Promise<void> => {
   const sorted = [...participants].sort((a, b) => b.bp.score - a.bp.score);
   const winner = sorted[0];
 
-  if (winner?.bp.userId) {
-    await checkAndAwardBadges(winner.bp.userId);
+  for (const row of participants) {
+    if (row.bp.userId) {
+      await checkAndAwardBadges(row.bp.userId);
+    }
   }
 
   res.json({

@@ -9,6 +9,7 @@ import { useGetOpenaiConversation } from "@workspace/api-client-react";
 import { useAuthContext } from "@/components/AuthProvider";
 import { LANGUAGES, type Language, getStoredLanguage, setStoredLanguage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { TutorMessageContent } from "@/components/TutorMessageContent";
 
 interface Message {
   id?: number;
@@ -16,6 +17,8 @@ interface Message {
   content: string;
   createdAt?: string;
 }
+
+type TutorProvider = "ai-tutor" | "math-bot";
 
 const LANG_PLACEHOLDERS: Record<Language, string> = {
   en: "Ask a question about math, physics, chemistry or coding...",
@@ -57,7 +60,11 @@ function MessageBubble({ msg }: { msg: Message }) {
       </div>
       <div className={cn("max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed relative",
         isUser ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-card border border-border text-foreground rounded-tl-sm")}>
-        <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+        {isUser ? (
+          <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+        ) : (
+          <TutorMessageContent content={msg.content} />
+        )}
         {!isUser && (
           <button onClick={handleCopy}
             className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-muted transition-all">
@@ -139,6 +146,7 @@ export default function TutorChatPage() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
+  const [provider, setProvider] = useState<TutorProvider>("ai-tutor");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -170,22 +178,20 @@ export default function TutorChatPage() {
   }
 
   async function sendMessage(overrideText?: string) {
-    const textToSend = overrideText || input.trim();
+    const textToSend = (overrideText ?? input).trim();
     if (!textToSend || streaming) return;
-    
+
     const userMsg: Message = { role: "user", content: textToSend };
     setMessages(m => [...m, userMsg]);
-    setInput(""); // Clear input
+    setInput("");
     setStreaming(true);
-    if (!input.trim() || streaming) return;
-    const q = input.trim();
     setStreamingContent("");
 
     try {
       const res = await fetch(`/api/openai/conversations/${convId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ content: q, language: lang }),
+        body: JSON.stringify({ content: textToSend, language: lang, provider }),
       });
 
       if (!res.ok || !res.body) throw new Error("Stream failed");
@@ -239,11 +245,37 @@ export default function TutorChatPage() {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card shrink-0">
         <Link href="/tutor"><Button variant="ghost" size="sm" className="gap-1.5 -ml-2"><ArrowLeft className="w-4 h-4" /></Button></Link>
-        <img src="/assets/logo.png" alt="MathMind" className="w-6 h-6 rounded object-cover hidden sm:block" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        <img src="/assets/logo.png" alt="AI Tutor" className="w-6 h-6 rounded object-cover hidden sm:block" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
         <BrainCircuit className="w-5 h-5 text-primary" />
         <div className="flex-1 min-w-0">
           <h1 className="font-semibold text-foreground text-sm truncate">{convTitle}</h1>
-          <p className="text-xs text-muted-foreground">AI Tutor • {currentLang.flag} {currentLang.nativeName}</p>
+          <p className="text-xs text-muted-foreground">
+            {provider === "ai-tutor" ? "AI Tutor" : "Math AI Bot"} • {currentLang.flag} {currentLang.nativeName}
+          </p>
+        </div>
+        <div className="flex items-center rounded-lg border border-border p-1">
+          <button
+            onClick={() => setProvider("ai-tutor")}
+            className={cn(
+              "px-2.5 py-1 text-xs rounded-md transition-colors",
+              provider === "ai-tutor"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            AI Tutor
+          </button>
+          <button
+            onClick={() => setProvider("math-bot")}
+            className={cn(
+              "px-2.5 py-1 text-xs rounded-md transition-colors",
+              provider === "math-bot"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Math AI Bot
+          </button>
         </div>
         <LanguageDropdown lang={lang} setLang={handleLangChange} />
       </div>
@@ -311,7 +343,12 @@ export default function TutorChatPage() {
             className="flex-1 resize-none min-h-44px max-h-32"
             style={{ height: "auto" }}
           />
-          <Button onClick={sendMessage} disabled={!input.trim() || streaming} size="icon" className="shrink-0 h-11 w-11">
+          <Button
+            onClick={() => void sendMessage()}
+            disabled={!input.trim() || streaming}
+            size="icon"
+            className="shrink-0 h-11 w-11"
+          >
             {streaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
         </div>

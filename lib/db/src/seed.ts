@@ -5,13 +5,18 @@ async function seed() {
   console.log("🌱 Seeding database...");
 
   // Subjects
-  const [math, physics, chemistry, prog] = await db
+  const [math, physics, chemistry, prog, biology, economics, history, english, geography] = await db
     .insert(subjectsTable)
     .values([
       { name: "Mathematics", nameHi: "गणित", description: "Algebra, Calculus, Geometry, Statistics", icon: "∑", color: "#8b5cf6", order: 1 },
       { name: "Physics", nameHi: "भौतिकी", description: "Mechanics, Thermodynamics, Waves, Electromagnetism", icon: "⚡", color: "#0ea5e9", order: 2 },
       { name: "Chemistry", nameHi: "रसायन", description: "Organic, Inorganic, Physical Chemistry", icon: "⚗", color: "#10b981", order: 3 },
       { name: "Programming", nameHi: "प्रोग्रामिंग", description: "Algorithms, Data Structures, Coding", icon: "{}", color: "#f59e0b", order: 4 },
+      { name: "Biology", nameHi: "जीवविज्ञान", description: "Cell biology, genetics, anatomy, ecology", icon: "🧬", color: "#22c55e", order: 5 },
+      { name: "Economics", nameHi: "अर्थशास्त्र", description: "Supply-demand, markets, GDP, inflation", icon: "📈", color: "#f97316", order: 6 },
+      { name: "History", nameHi: "इतिहास", description: "Civilizations, medieval era, world history", icon: "🏛️", color: "#a855f7", order: 7 },
+      { name: "English", nameHi: "अंग्रेज़ी", description: "Grammar, vocabulary, reading and writing", icon: "📖", color: "#ec4899", order: 8 },
+      { name: "Geography", nameHi: "भूगोल", description: "Physical geography, climate, maps", icon: "🌍", color: "#06b6d4", order: 9 },
     ])
     .onConflictDoNothing()
     .returning();
@@ -67,6 +72,57 @@ async function seed() {
       { subjectId: prog.id, name: "Sorting Algorithms", nameHi: "क्रमबद्ध एल्गोरिदम", order: 4 },
     ])
     .returning();
+
+  // Topics for Biology
+  if (biology) {
+    await db.insert(topicsTable).values([
+      { subjectId: biology.id, name: "Cell Biology", nameHi: "कोशिका जीव विज्ञान", order: 1 },
+      { subjectId: biology.id, name: "Genetics", nameHi: "आनुवंशिकी", order: 2 },
+      { subjectId: biology.id, name: "Human Anatomy", nameHi: "मानव शरीर रचना", order: 3 },
+      { subjectId: biology.id, name: "Ecology", nameHi: "पारिस्थितिकी", order: 4 },
+      { subjectId: biology.id, name: "Photosynthesis", nameHi: "प्रकाश संश्लेषण", order: 5 },
+    ]).returning();
+  }
+
+  // Topics for Economics
+  if (economics) {
+    await db.insert(topicsTable).values([
+      { subjectId: economics.id, name: "Supply & Demand", nameHi: "आपूर्ति और माँग", order: 1 },
+      { subjectId: economics.id, name: "Market Structures", nameHi: "बाज़ार संरचनाएँ", order: 2 },
+      { subjectId: economics.id, name: "GDP & Growth", nameHi: "जीडीपी और विकास", order: 3 },
+      { subjectId: economics.id, name: "Inflation", nameHi: "मुद्रास्फीति", order: 4 },
+    ]).returning();
+  }
+
+  // Topics for History
+  if (history) {
+    await db.insert(topicsTable).values([
+      { subjectId: history.id, name: "Ancient Civilizations", nameHi: "प्राचीन सभ्यताएँ", order: 1 },
+      { subjectId: history.id, name: "Medieval History", nameHi: "मध्यकालीन इतिहास", order: 2 },
+      { subjectId: history.id, name: "World Wars", nameHi: "विश्व युद्ध", order: 3 },
+      { subjectId: history.id, name: "Indian Independence", nameHi: "भारतीय स्वतंत्रता", order: 4 },
+    ]).returning();
+  }
+
+  // Topics for English
+  if (english) {
+    await db.insert(topicsTable).values([
+      { subjectId: english.id, name: "Grammar Basics", nameHi: "व्याकरण की मूल बातें", order: 1 },
+      { subjectId: english.id, name: "Reading Comprehension", nameHi: "पठन बोध", order: 2 },
+      { subjectId: english.id, name: "Vocabulary", nameHi: "शब्द भंडार", order: 3 },
+      { subjectId: english.id, name: "Essay Writing", nameHi: "निबंध लेखन", order: 4 },
+    ]).returning();
+  }
+
+  // Topics for Geography
+  if (geography) {
+    await db.insert(topicsTable).values([
+      { subjectId: geography.id, name: "Physical Geography", nameHi: "भौतिक भूगोल", order: 1 },
+      { subjectId: geography.id, name: "Climate & Weather", nameHi: "जलवायु और मौसम", order: 2 },
+      { subjectId: geography.id, name: "World Countries", nameHi: "विश्व के देश", order: 3 },
+      { subjectId: geography.id, name: "Maps & Coordinates", nameHi: "मानचित्र और निर्देशांक", order: 4 },
+    ]).returning();
+  }
 
   console.log("✅ Topics seeded");
 
@@ -268,18 +324,18 @@ async function seed() {
   await db
     .insert(badgesTable)
     .values([
-      { name: "First Steps", description: "Answer your first question", icon: "🎯", rarity: "common", condition: "answer_1" },
-      { name: "Quick Learner", description: "Answer 10 questions", icon: "⚡", rarity: "common", condition: "answer_10" },
-      { name: "Math Enthusiast", description: "Answer 50 questions", icon: "📚", rarity: "rare", condition: "answer_50" },
-      { name: "Streak Starter", description: "Maintain a 3-day streak", icon: "🔥", rarity: "common", condition: "streak_3" },
-      { name: "On Fire", description: "Maintain a 7-day streak", icon: "🌟", rarity: "rare", condition: "streak_7" },
-      { name: "Unstoppable", description: "Maintain a 30-day streak", icon: "💎", rarity: "legendary", condition: "streak_30" },
-      { name: "Sharpshooter", description: "Get 10 correct in a row", icon: "🎯", rarity: "rare", condition: "correct_10" },
-      { name: "Battle Winner", description: "Win your first battle", icon: "⚔️", rarity: "rare", condition: "battle_win_1" },
-      { name: "Battle Champion", description: "Win 10 battles", icon: "🏆", rarity: "epic", condition: "battle_win_10" },
-      { name: "Speed Demon", description: "Answer correctly in under 5s", icon: "💨", rarity: "rare", condition: "speed_5" },
-      { name: "XP Collector", description: "Earn 1000 XP", icon: "⭐", rarity: "rare", condition: "xp_1000" },
-      { name: "Math Legend", description: "Reach Level 10", icon: "👑", rarity: "legendary", condition: "level_10" },
+      { name: "First Steps", description: "Answer your first question", icon: "🎯", rarity: "common", condition: "answer_1", xpRequired: 0 },
+      { name: "Quick Learner", description: "Answer 10 questions", icon: "⚡", rarity: "common", condition: "answer_10", xpRequired: 100 },
+      { name: "Math Enthusiast", description: "Answer 50 questions", icon: "📚", rarity: "rare", condition: "answer_50", xpRequired: 500 },
+      { name: "Streak Starter", description: "Maintain a 3-day streak", icon: "🔥", rarity: "common", condition: "streak_3", xpRequired: 150 },
+      { name: "On Fire", description: "Maintain a 7-day streak", icon: "🌟", rarity: "rare", condition: "streak_7", xpRequired: 350 },
+      { name: "Unstoppable", description: "Maintain a 30-day streak", icon: "💎", rarity: "legendary", condition: "streak_30", xpRequired: 1500 },
+      { name: "Sharpshooter", description: "Get 10 correct in a row", icon: "🎯", rarity: "rare", condition: "correct_10", xpRequired: 400 },
+      { name: "Battle Winner", description: "Win your first battle", icon: "⚔️", rarity: "rare", condition: "battle_win_1", xpRequired: 250 },
+      { name: "Battle Champion", description: "Win 10 battles", icon: "🏆", rarity: "epic", condition: "battle_win_10", xpRequired: 900 },
+      { name: "Speed Demon", description: "Answer correctly in under 5s", icon: "💨", rarity: "rare", condition: "speed_5", xpRequired: 450 },
+      { name: "XP Collector", description: "Earn 1000 XP", icon: "⭐", rarity: "rare", condition: "xp_1000", xpRequired: 1000 },
+      { name: "Math Legend", description: "Reach Level 10", icon: "👑", rarity: "legendary", condition: "level_10", xpRequired: 2000 },
     ])
     .onConflictDoNothing();
 
